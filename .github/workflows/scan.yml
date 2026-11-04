@@ -72,16 +72,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install jq
-        run: |
-          set -euo pipefail
-          if ! command -v jq >/dev/null 2>&1; then
-            apt-get update
-            apt-get install -y --no-install-recommends jq
-          fi
-
       # Relative ./ would resolve to the *caller* repo, so pin this action repo.
       # Install is a no-op here because cce is already on PATH in the job container.
+      # Pin @v1 for callers; self-test also exercises the composite action via uses: ./
       - name: Run CCE
         id: cce
         uses: stackgenhq/cce-action@v1
