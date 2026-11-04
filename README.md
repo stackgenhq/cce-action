@@ -1,6 +1,6 @@
 # cce-action
 
-GitHub Action and reusable workflow that installs [StackGen CCE](https://github.com/appcd-dev/cce) and scans the repository where the workflow is running.
+GitHub Action and reusable workflow that installs [StackGen CCE](https://appcd-dev.github.io/cce/) and scans the repository where the workflow is running.
 
 It resolves the latest `cce` release from [`stackgenhq/homebrew-stackgen/cce.rb`](https://github.com/stackgenhq/homebrew-stackgen/blob/main/cce.rb), scans your checkout, and (by default) exports minimum AWS IAM, GCP IAM, Azure RBAC, and cloud-neutral E-SBOM artifacts.
 
