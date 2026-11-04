@@ -63,11 +63,9 @@ jobs:
         uses: actions/checkout@v4
 
       # Relative ./ would resolve to the *caller* repo, so pin this action repo.
-      # Use @v1 in caller examples; @main keeps self-test working before the
-      # first release tag exists. Prefer @v1 (or a sha) in production callers.
       - name: Run CCE
         id: cce
-        uses: stackgenhq/cce-action@main
+        uses: stackgenhq/cce-action@v1
         with:
           path: ${{ inputs.path }}
           language: ${{ inputs.language }}
