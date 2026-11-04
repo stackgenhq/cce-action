@@ -59,11 +59,6 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    # Run inside the published CCE image so there is no separate binary download.
-    # root so checkout/upload-artifact can write the workspace.
-    container:
-      image: ${{ inputs.image }}
-      options: --user root
     outputs:
       version: ${{ steps.cce.outputs.version }}
       report-path: ${{ steps.cce.outputs.report-path }}
@@ -73,8 +68,8 @@ jobs:
         uses: actions/checkout@v4
 
       # Relative ./ would resolve to the *caller* repo, so pin this action repo.
-      # Install is a no-op here because cce is already on PATH in the job container.
-      # Pin @v1 for callers; self-test also exercises the composite action via uses: ./
+      # The action pulls ghcr.io/stackgenhq/cce and copies the binary onto PATH
+      # (composite actions cannot run reliably inside a job container).
       - name: Run CCE
         id: cce
         uses: stackgenhq/cce-action@v1

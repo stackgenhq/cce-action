@@ -2,10 +2,10 @@
 
 GitHub Action and reusable workflow that runs [StackGen CCE](https://appcd-dev.github.io/cce/) against the repository where the workflow is running.
 
-The composite action installs `cce` by copying the binary out of
+Both the composite action and the reusable workflow install `cce` by pulling
 [`ghcr.io/stackgenhq/cce`](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce)
-(no Homebrew formula download). The reusable workflow goes further: the job
-**runs inside that image**, so there is no separate install step at all.
+and copying `/usr/local/bin/cce` onto `PATH`. That replaces the previous
+Homebrew formula download and works on linux amd64 and arm64 runners.
 
 By default it exports minimum AWS IAM, GCP IAM, Azure RBAC, and cloud-neutral
 E-SBOM artifacts.
@@ -74,8 +74,7 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 
 ## Requirements
 
-- Linux runner (`ubuntu-latest`)
-- Docker on the runner when the job is **not** already using the CCE image (composite action copies the binary out of the image)
+- Linux runner with Docker (`ubuntu-latest`)
 - `actions/checkout` before the composite action (the reusable workflow does this for you)
 - Network access to pull `ghcr.io/stackgenhq/cce` ([package page](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce))
 

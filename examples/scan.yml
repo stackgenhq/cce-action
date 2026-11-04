@@ -11,7 +11,7 @@ permissions:
   packages: read
 
 jobs:
-  # Option A: reusable workflow runs inside ghcr.io/stackgenhq/cce (no binary download).
+  # Option A: reusable workflow (pulls ghcr.io/stackgenhq/cce, copies cce onto PATH).
   scan:
     uses: stackgenhq/cce-action/.github/workflows/scan.yml@v1
     with:
