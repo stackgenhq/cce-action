@@ -8,9 +8,10 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
-  # Option A: reusable workflow (checkout + scan + artifact upload).
+  # Option A: reusable workflow runs inside ghcr.io/stackgenhq/cce (no binary download).
   scan:
     uses: stackgenhq/cce-action/.github/workflows/scan.yml@v1
     with:
@@ -20,7 +21,7 @@ jobs:
       # unmapped method signatures to StackGen field ingest.
       diagnostics: false
 
-  # Option B: composite action inside your own job.
+  # Option B: composite action on the host runner (pulls the image, copies cce onto PATH).
   # scan-inline:
   #   runs-on: ubuntu-latest
   #   steps:

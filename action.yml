@@ -43,11 +43,18 @@ inputs:
     description: "cce log level: debug, info, warn, error"
     required: false
     default: info
+  image:
+    description: "Container image used to install the cce binary (copied onto PATH)"
+    required: false
+    default: ghcr.io/stackgenhq/cce:latest
 
 outputs:
   version:
     description: Installed cce version
     value: ${{ steps.install.outputs.version }}
+  image:
+    description: Container image used for install, or preinstalled
+    value: ${{ steps.install.outputs.image }}
   report-path:
     description: Path to the primary scan report
     value: ${{ steps.scan.outputs.report-path }}
@@ -74,7 +81,7 @@ runs:
       id: install
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
+        INPUT_IMAGE: ${{ inputs.image }}
       run: |
         set -euo pipefail
         "${{ github.action_path }}/scripts/install-cce.sh"

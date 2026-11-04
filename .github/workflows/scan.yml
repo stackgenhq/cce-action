@@ -37,6 +37,10 @@ on:
         description: Name of the uploaded artifact
         type: string
         default: cce-results
+      image:
+        description: CCE container image (job runs in this image; cce is preinstalled)
+        type: string
+        default: ghcr.io/stackgenhq/cce:latest
     outputs:
       version:
         description: Installed cce version
@@ -50,10 +54,16 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+    # Run inside the published CCE image so there is no separate binary download.
+    # root so checkout/upload-artifact can write the workspace.
+    container:
+      image: ${{ inputs.image }}
+      options: --user root
     outputs:
       version: ${{ steps.cce.outputs.version }}
       report-path: ${{ steps.cce.outputs.report-path }}
@@ -62,7 +72,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install jq
+        run: |
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y --no-install-recommends jq
+          fi
+
       # Relative ./ would resolve to the *caller* repo, so pin this action repo.
+      # Install is a no-op here because cce is already on PATH in the job container.
       - name: Run CCE
         id: cce
         uses: stackgenhq/cce-action@v1
@@ -74,6 +93,7 @@ jobs:
           export-policies: ${{ inputs.export-policies }}
           fail-on-empty: ${{ inputs.fail-on-empty }}
           log-level: ${{ inputs.log-level }}
+          image: ${{ inputs.image }}
 
       - name: Upload results
         if: always()

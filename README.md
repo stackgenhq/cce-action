@@ -1,8 +1,14 @@
 # cce-action
 
-GitHub Action and reusable workflow that installs [StackGen CCE](https://appcd-dev.github.io/cce/) and scans the repository where the workflow is running.
+GitHub Action and reusable workflow that runs [StackGen CCE](https://appcd-dev.github.io/cce/) against the repository where the workflow is running.
 
-It resolves the latest `cce` release from [`stackgenhq/homebrew-stackgen/cce.rb`](https://github.com/stackgenhq/homebrew-stackgen/blob/main/cce.rb), scans your checkout, and (by default) exports minimum AWS IAM, GCP IAM, Azure RBAC, and cloud-neutral E-SBOM artifacts.
+The composite action installs `cce` by copying the binary out of
+[`ghcr.io/stackgenhq/cce`](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce)
+(no Homebrew formula download). The reusable workflow goes further: the job
+**runs inside that image**, so there is no separate install step at all.
+
+By default it exports minimum AWS IAM, GCP IAM, Azure RBAC, and cloud-neutral
+E-SBOM artifacts.
 
 ## Quick start
 
@@ -11,6 +17,7 @@ name: CCE
 on: [push, pull_request]
 permissions:
   contents: read
+  packages: read
 jobs:
   scan:
     uses: stackgenhq/cce-action/.github/workflows/scan.yml@v1
@@ -18,7 +25,8 @@ jobs:
       language: AUTO
 ```
 
-Or inside an existing job:
+Or inside an existing (host) job. This pulls the image once and copies `cce`
+onto `PATH`:
 
 ```yaml
 - uses: actions/checkout@v4
@@ -49,12 +57,14 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 | `export-policies` | `true` | Export aws-iam / gcp-iam / azure-rbac / esbom |
 | `fail-on-empty` | `false` | Fail when entitlements == 0 |
 | `log-level` | `info` | `debug`, `info`, `warn`, `error` |
+| `image` | `ghcr.io/stackgenhq/cce:latest` | Container image used to provide `cce` |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
 | `version` | Installed `cce` version |
+| `image` | Image used for install, or `preinstalled` |
 | `report-path` | Primary scan report |
 | `aws-iam-path` | AWS IAM policy JSON, or empty |
 | `gcp-iam-path` | GCP custom role YAML, or empty |
@@ -64,10 +74,11 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 
 ## Requirements
 
-- Linux amd64 runner (`ubuntu-latest`)
+- Linux runner (`ubuntu-latest`)
+- Docker on the runner when the job is **not** already using the CCE image (composite action copies the binary out of the image)
 - `actions/checkout` before the composite action (the reusable workflow does this for you)
-- Network access to download the `cce` release referenced by the Homebrew formula
+- Network access to pull `ghcr.io/stackgenhq/cce` ([package page](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce))
 
 ## Versioning
 
-Use a major tag (`@v1`) or a pinned release (`@v0.1.0`). Tags are published after self-test CI is green.
+Use a major tag (`@v1`) or a pinned release (`@v0.1.0`). Tags are published after self-test CI is green. Pin `image` to a version tag (for example `ghcr.io/stackgenhq/cce:0.0.12`) when you need a fixed CLI.

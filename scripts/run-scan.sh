@@ -39,8 +39,13 @@ if [[ ! -f "$report_path" ]]; then
 fi
 
 entitlement_count=0
-if [[ "$format" == "json" ]] && command -v jq >/dev/null 2>&1; then
-  entitlement_count=$(jq -r '.summary.total_entitlements // 0' "$report_path")
+if [[ "$format" == "json" ]]; then
+  if command -v jq >/dev/null 2>&1; then
+    entitlement_count=$(jq -r '.summary.total_entitlements // 0' "$report_path")
+  else
+    # Container image may not ship jq; keep the count best-effort.
+    entitlement_count=$(grep -Eo '"total_entitlements"[[:space:]]*:[[:space:]]*[0-9]+' "$report_path" | head -1 | grep -Eo '[0-9]+$' || echo 0)
+  fi
 fi
 
 if [[ "$fail_on_empty" == "true" && "$entitlement_count" == "0" ]]; then
