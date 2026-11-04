@@ -1,0 +1,83 @@
+name: CCE scan (reusable)
+
+# Checkout the calling repository, run stackgenhq/cce-action, and upload results.
+# Diagnostics stay off unless the caller sets diagnostics: true.
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Directory to scan inside the checked-out repo
+        type: string
+        default: "."
+      language:
+        description: "Language: GO, PYTHON, JAVA, JAVASCRIPT, or AUTO"
+        type: string
+        default: AUTO
+      filter:
+        description: "Result filter: cloud or all"
+        type: string
+        default: cloud
+      diagnostics:
+        description: Opt in to StackGen field diagnostics (off by default)
+        type: boolean
+        default: false
+      export-policies:
+        description: Export aws-iam, gcp-iam, azure-rbac, and esbom
+        type: boolean
+        default: true
+      fail-on-empty:
+        description: Fail when the scan finds zero entitlements
+        type: boolean
+        default: false
+      log-level:
+        description: cce log level
+        type: string
+        default: info
+      artifact-name:
+        description: Name of the uploaded artifact
+        type: string
+        default: cce-results
+    outputs:
+      version:
+        description: Installed cce version
+        value: ${{ jobs.scan.outputs.version }}
+      report-path:
+        description: Path to the primary scan report
+        value: ${{ jobs.scan.outputs.report-path }}
+      entitlement-count:
+        description: Total entitlements found
+        value: ${{ jobs.scan.outputs.entitlement-count }}
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.cce.outputs.version }}
+      report-path: ${{ steps.cce.outputs.report-path }}
+      entitlement-count: ${{ steps.cce.outputs.entitlement-count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run CCE
+        id: cce
+        uses: ./
+        with:
+          path: ${{ inputs.path }}
+          language: ${{ inputs.language }}
+          filter: ${{ inputs.filter }}
+          diagnostics: ${{ inputs.diagnostics }}
+          export-policies: ${{ inputs.export-policies }}
+          fail-on-empty: ${{ inputs.fail-on-empty }}
+          log-level: ${{ inputs.log-level }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: cce-results/*
+          if-no-files-found: warn

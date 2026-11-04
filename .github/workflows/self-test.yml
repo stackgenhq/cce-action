@@ -1,0 +1,65 @@
+name: Self-test
+
+# Dogfoods the composite action against this repo (and a tiny AWS fixture) so
+# releases are tagged only after install + scan succeed on ubuntu-latest.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan fixture with composite action
+        id: cce
+        uses: ./
+        with:
+          path: testdata/fixture
+          language: PYTHON
+          filter: cloud
+          diagnostics: false
+          export-policies: true
+          fail-on-empty: true
+          log-level: info
+
+      - name: Assert outputs
+        run: |
+          set -euo pipefail
+          echo "cce version=${{ steps.cce.outputs.version }}"
+          echo "entitlements=${{ steps.cce.outputs.entitlement-count }}"
+          test -n "${{ steps.cce.outputs.version }}"
+          test -f "${{ steps.cce.outputs.report-path }}"
+          test -f "${{ steps.cce.outputs.aws-iam-path }}"
+          test -f "${{ steps.cce.outputs.esbom-path }}"
+          test "${{ steps.cce.outputs.entitlement-count }}" -gt 0
+
+      - name: Upload self-test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-test-cce-results
+          path: cce-results/*
+          if-no-files-found: warn
+
+  reusable:
+    uses: ./.github/workflows/scan.yml
+    with:
+      path: testdata/fixture
+      language: PYTHON
+      filter: cloud
+      diagnostics: false
+      export-policies: true
+      fail-on-empty: true
+      artifact-name: reusable-self-test-cce-results

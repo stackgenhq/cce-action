@@ -1,0 +1,98 @@
+name: CCE scan
+description: Install StackGen CCE and scan the current repository for cloud entitlements and minimum IAM/RBAC permissions.
+author: StackGen
+
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  path:
+    description: Directory to scan (relative to the workspace). Caller should check out the repo first.
+    required: false
+    default: "."
+  language:
+    description: "Language: GO, PYTHON, JAVA, JAVASCRIPT, or AUTO"
+    required: false
+    default: AUTO
+  filter:
+    description: "Result filter: cloud or all"
+    required: false
+    default: cloud
+  format:
+    description: Primary report format (json recommended)
+    required: false
+    default: json
+  output-dir:
+    description: Directory where the scan report and policy exports are written
+    required: false
+    default: cce-results
+  diagnostics:
+    description: "Opt in to StackGen field diagnostics for unmapped method signatures (off by default)"
+    required: false
+    default: "false"
+  export-policies:
+    description: "Export aws-iam, gcp-iam, azure-rbac, and esbom from the scan report"
+    required: false
+    default: "true"
+  fail-on-empty:
+    description: Fail the step when the scan finds zero entitlements
+    required: false
+    default: "false"
+  log-level:
+    description: "cce log level: debug, info, warn, error"
+    required: false
+    default: info
+
+outputs:
+  version:
+    description: Installed cce version
+    value: ${{ steps.install.outputs.version }}
+  report-path:
+    description: Path to the primary scan report
+    value: ${{ steps.scan.outputs.report-path }}
+  aws-iam-path:
+    description: Path to the AWS IAM policy JSON (empty if none)
+    value: ${{ steps.scan.outputs.aws-iam-path }}
+  gcp-iam-path:
+    description: Path to the GCP IAM role YAML (empty if none)
+    value: ${{ steps.scan.outputs.gcp-iam-path }}
+  azure-rbac-path:
+    description: Path to the Azure RBAC role JSON (empty if none)
+    value: ${{ steps.scan.outputs.azure-rbac-path }}
+  esbom-path:
+    description: Path to the cloud-neutral E-SBOM JSON (empty if none)
+    value: ${{ steps.scan.outputs.esbom-path }}
+  entitlement-count:
+    description: Total entitlements found in the scan report
+    value: ${{ steps.scan.outputs.entitlement-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install cce
+      id: install
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/scripts/install-cce.sh"
+
+    - name: Scan and export policies
+      id: scan
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_FILTER: ${{ inputs.filter }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+        INPUT_DIAGNOSTICS: ${{ inputs.diagnostics }}
+        INPUT_EXPORT_POLICIES: ${{ inputs.export-policies }}
+        INPUT_FAIL_ON_EMPTY: ${{ inputs.fail-on-empty }}
+        INPUT_LOG_LEVEL: ${{ inputs.log-level }}
+        CCE_DIAGNOSTICS: ${{ inputs.diagnostics == 'true' && 'true' || 'false' }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/scripts/run-scan.sh"

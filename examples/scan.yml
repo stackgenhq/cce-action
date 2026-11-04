@@ -1,0 +1,35 @@
+# Drop this into .github/workflows/cce.yml in any repository.
+name: CCE
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Option A: reusable workflow (checkout + scan + artifact upload).
+  scan:
+    uses: stackgenhq/cce-action/.github/workflows/scan.yml@v1
+    with:
+      language: AUTO
+      filter: cloud
+      # Leave diagnostics false unless you intentionally opt in to sending
+      # unmapped method signatures to StackGen field ingest.
+      diagnostics: false
+
+  # Option B: composite action inside your own job.
+  # scan-inline:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: stackgenhq/cce-action@v1
+  #       with:
+  #         language: GO
+  #         diagnostics: false
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: cce-results
+  #         path: cce-results/*
