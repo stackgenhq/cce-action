@@ -88,10 +88,10 @@ if [[ "$export_policies" == "true" && "$format" == "json" ]]; then
   try_export aws-iam AWS "$out_aws"
   [[ -f "$out_aws" ]] && aws_iam_path="$out_aws"
 
-  try_export gcp-iam GCP "$out_gcp" --allow-inferred
+  try_export gcp-iam GCP "$out_gcp"
   [[ -f "$out_gcp" ]] && gcp_iam_path="$out_gcp"
 
-  try_export azure-rbac AZURE "$out_azure" --allow-inferred
+  try_export azure-rbac AZURE "$out_azure"
   [[ -f "$out_azure" ]] && azure_rbac_path="$out_azure"
 
   try_export esbom "" "$out_esbom"
