@@ -7,8 +7,20 @@ Both the composite action and the reusable workflow install `cce` by pulling
 and copying `/usr/local/bin/cce` onto `PATH`. That replaces the previous
 Homebrew formula download and works on linux amd64 and arm64 runners.
 
-By default it exports minimum AWS IAM, GCP IAM, Azure RBAC, and cloud-neutral
-E-SBOM artifacts.
+By default it attempts to export AWS IAM, GCP IAM, Azure RBAC, and
+cloud-neutral E-SBOM artifacts. GCP IAM and Azure RBAC exports use the CLI's
+**strict** permission mapping: the action does not pass `--allow-inferred`.
+If any GCP or Azure entitlement with a resource and operation needs an
+`sdk_inferred` permission, the entire role export for that provider fails;
+no partial or guessed role is published, and its output path is empty. This
+applies even when the report mixes catalog-mapped and unknown operations.
+The scan report (and other successful exports) remains available, and the
+step does not fail solely because a policy cannot be derived. Check the
+`gcp-iam-path` / `azure-rbac-path` output before consuming a role. Azure uses
+the same strict behavior because its inferred RBAC actions carry the same
+risk of publishing an unverified permission. AWS IAM and E-SBOM behavior is
+unchanged. `fail-on-empty` checks the report's entitlement count, **not**
+whether a provider role was exported.
 
 ## Quick start
 
@@ -67,8 +79,8 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 | `image` | Image used for install, or `preinstalled` |
 | `report-path` | Primary scan report |
 | `aws-iam-path` | AWS IAM policy JSON, or empty |
-| `gcp-iam-path` | GCP custom role YAML, or empty |
-| `azure-rbac-path` | Azure role JSON, or empty |
+| `gcp-iam-path` | GCP custom role YAML only if all relevant permissions are catalog-mapped; otherwise empty |
+| `azure-rbac-path` | Azure role JSON only if all relevant actions are catalog-mapped; otherwise empty |
 | `esbom-path` | Cloud-neutral E-SBOM JSON, or empty |
 | `entitlement-count` | Total entitlements in the report |
 
