@@ -11,6 +11,7 @@ output_dir="${INPUT_OUTPUT_DIR:-cce-results}"
 export_policies="${INPUT_EXPORT_POLICIES:-true}"
 fail_on_empty="${INPUT_FAIL_ON_EMPTY:-false}"
 log_level="${INPUT_LOG_LEVEL:-info}"
+scan_timeout="${INPUT_SCAN_TIMEOUT:-0}"
 
 if ! command -v cce >/dev/null 2>&1; then
   echo "::error::cce is not on PATH; install-cce.sh must run first"
@@ -25,13 +26,41 @@ fi
 mkdir -p "$output_dir"
 report_path="${output_dir}/scan.${format}"
 
+# One DEBUG line per unmapped call: SDK-heavy repos produced tens of MB of log
+# lines in fuzz runs (141k lines / 47MB for one Java monorepo), which can stall
+# CI log ingestion. diagnostics=true ships unmapped signatures to the Stackgen
+# ingest endpoint instead, without the log flood.
+if [[ "$log_level" == "debug" ]]; then
+  echo "::warning::log-level=debug streams one DEBUG line per unmapped SDK call; large or SDK-heavy repos can produce tens of MB of logs and may slow CI log ingestion. Prefer diagnostics=true with log-level=info."
+fi
+
 echo "Scanning $path (language=$language filter=$filter diagnostics=${CCE_DIAGNOSTICS:-false})"
-cce --folder "$path" \
-  --language "$language" \
-  --filter "$filter" \
-  --format "$format" \
-  --log-level "$log_level" \
-  --output "$report_path"
+
+run_scan() {
+  local args=(
+    --folder "$path"
+    --language "$language"
+    --filter "$filter"
+    --format "$format"
+    --log-level "$log_level"
+    --output "$report_path"
+  )
+  if [[ "$scan_timeout" != "0" && "$scan_timeout" != "" ]] && command -v timeout >/dev/null 2>&1; then
+    # Fail fast on huge repos instead of letting the job burn its whole runner
+    # budget and get cancelled by a workflow-level timeout-minutes (observed:
+    # a 143k-file Java monorepo scanned for 14 minutes and produced nothing).
+    local rc=0
+    timeout --signal=INT --kill-after=15s "${scan_timeout}s" cce "${args[@]}" || rc=$?
+    if [[ "$rc" -eq 124 ]]; then
+      echo "::error::cce scan exceeded scan-timeout=${scan_timeout}s for $path. The repo is likely too large for a single scan; scan subdirectories, raise scan-timeout, or check the repo size first."
+      exit 124
+    fi
+    return "$rc"
+  fi
+  cce "${args[@]}"
+}
+
+run_scan
 
 if [[ ! -f "$report_path" ]]; then
   echo "::error::scan produced no report at $report_path"

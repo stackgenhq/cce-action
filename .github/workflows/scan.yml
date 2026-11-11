@@ -33,6 +33,10 @@ on:
         description: cce log level
         type: string
         default: info
+      scan-timeout:
+        description: Wall-clock seconds allowed for the cce scan itself (0 = no limit)
+        type: string
+        default: "0"
       artifact-name:
         description: Name of the uploaded artifact
         type: string
@@ -81,6 +85,7 @@ jobs:
           export-policies: ${{ inputs.export-policies }}
           fail-on-empty: ${{ inputs.fail-on-empty }}
           log-level: ${{ inputs.log-level }}
+          scan-timeout: ${{ inputs.scan-timeout }}
           image: ${{ inputs.image }}
 
       - name: Upload results

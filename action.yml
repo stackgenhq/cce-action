@@ -43,6 +43,10 @@ inputs:
     description: "cce log level: debug, info, warn, error"
     required: false
     default: info
+  scan-timeout:
+    description: "Wall-clock seconds allowed for the cce scan itself (0 = no limit). Huge repos fail fast with a clear error instead of burning the whole job budget"
+    required: false
+    default: "0"
   image:
     description: "Container image used to install the cce binary (copied onto PATH)"
     required: false
@@ -99,6 +103,7 @@ runs:
         INPUT_EXPORT_POLICIES: ${{ inputs.export-policies }}
         INPUT_FAIL_ON_EMPTY: ${{ inputs.fail-on-empty }}
         INPUT_LOG_LEVEL: ${{ inputs.log-level }}
+        INPUT_SCAN_TIMEOUT: ${{ inputs.scan-timeout }}
         CCE_DIAGNOSTICS: ${{ inputs.diagnostics == 'true' && 'true' || 'false' }}
       run: |
         set -euo pipefail
