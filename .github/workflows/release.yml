@@ -59,10 +59,12 @@ jobs:
           ref: ${{ github.sha }}
 
       - name: Cut release
+        # GITHUB_SHA / GITHUB_REPOSITORY / GITHUB_REF_NAME come from the runner
+        # defaults (the dispatched ref); the GITHUB_ prefix is reserved and
+        # cannot be set here, and setting it made the run fail with
+        # startup_failure (run 43095373081).
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF_NAME: main
           RELEASE_VERSION: ${{ inputs.version }}
           MAJOR_TAG: ${{ inputs.major-tag }}
           NOTES_LINE: ${{ inputs.notes }}
