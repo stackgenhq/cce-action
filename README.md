@@ -56,6 +56,12 @@ CCE field diagnostics are **disabled** unless you set `diagnostics: true`.
 
 When enabled, CCE posts unresolved method signatures to StackGen so the next release can close mapper gaps. Leave this off for normal product CI. Opt in only when you intend to contribute those signatures (for example a dedicated fuzz harness).
 
+Prefer `diagnostics: true` with the default `log-level: info` over
+`log-level: debug` when scanning large repositories. Debug streams one line
+per unmapped SDK call; in fuzz runs SDK-heavy repos produced tens of MB of
+log lines in a single scan (141k lines / 47MB for one Java monorepo), which
+can slow CI log ingestion.
+
 ## Inputs
 
 | Input | Default | Description |
@@ -69,6 +75,7 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 | `export-policies` | `true` | Export aws-iam / gcp-iam / azure-rbac / esbom |
 | `fail-on-empty` | `false` | Fail when entitlements == 0 |
 | `log-level` | `info` | `debug`, `info`, `warn`, `error` |
+| `scan-timeout` | `0` | Wall-clock seconds allowed for the cce scan itself (0 = no limit) |
 | `image` | `ghcr.io/stackgenhq/cce:latest` | Container image used to provide `cce` |
 
 ## Outputs
@@ -83,6 +90,15 @@ When enabled, CCE posts unresolved method signatures to StackGen so the next rel
 | `azure-rbac-path` | Azure role JSON only if all relevant actions are catalog-mapped; otherwise empty |
 | `esbom-path` | Cloud-neutral E-SBOM JSON, or empty |
 | `entitlement-count` | Total entitlements in the report |
+
+## Large repositories
+
+A scan that grows with the repository can outlast a job's `timeout-minutes`
+before producing any report (observed: a 143k-file Java monorepo scanned for
+14 minutes, was cancelled by the workflow timeout, and uploaded nothing).
+Set `scan-timeout` so oversized repos fail fast with an actionable error
+instead of burning the whole job budget, and consider scanning subdirectories
+or checking the repo size in a prior step.
 
 ## Requirements
 

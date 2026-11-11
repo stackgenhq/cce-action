@@ -34,6 +34,8 @@ jobs:
           export-policies: true
           fail-on-empty: true
           log-level: info
+          # Exercise the scan-timeout plumbing on a fixture that finishes fast.
+          scan-timeout: "300"
 
       - name: Assert outputs
         run: |
@@ -54,6 +56,45 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: self-test-cce-results
+          path: cce-results/*
+          if-no-files-found: warn
+
+  action-javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Dogfood the JAVASCRIPT path of cce so SDK gaps in the JS analyzer or
+      # mapper surface here, not only in downstream consumers.
+      - name: Scan JavaScript fixture with composite action
+        id: cce-js
+        uses: ./
+        with:
+          path: testdata/fixture-js
+          language: JAVASCRIPT
+          filter: cloud
+          diagnostics: false
+          export-policies: true
+          fail-on-empty: true
+          log-level: info
+          scan-timeout: "300"
+
+      - name: Assert outputs
+        run: |
+          set -euo pipefail
+          echo "cce version=${{ steps.cce-js.outputs.version }}"
+          echo "entitlements=${{ steps.cce-js.outputs.entitlement-count }}"
+          test -n "${{ steps.cce-js.outputs.version }}"
+          test -f "${{ steps.cce-js.outputs.report-path }}"
+          test -f "${{ steps.cce-js.outputs.aws-iam-path }}"
+          test "${{ steps.cce-js.outputs.entitlement-count }}" -gt 0
+
+      - name: Upload JS self-test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: self-test-cce-js-results
           path: cce-results/*
           if-no-files-found: warn
 
