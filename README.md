@@ -108,4 +108,19 @@ or checking the repo size in a prior step.
 
 ## Versioning
 
-Use a major tag (`@v1`) or a pinned release (`@v0.1.0`). Tags are published after self-test CI is green. Pin `image` to a version tag (for example `ghcr.io/stackgenhq/cce:0.0.12`) when you need a fixed CLI.
+Use a major tag (`@v1`) or a pinned release (`@v0.2.0`). Pin `image` to a version tag (for example `ghcr.io/stackgenhq/cce:0.0.12`) when you need a fixed CLI.
+
+Releases are cut from the **Release** workflow (Actions tab -> Run workflow on
+`main`). The workflow refuses to release unless Self-test is green for the
+exact commit being released. Leave the version input empty and the next
+version is derived from the commit subjects since the last tag
+(`feat`/`feat!` -> minor bump, `fix` -> patch bump; on the 0.x line a breaking
+change bumps minor, not major), or pass an explicit version like `v0.2.0`.
+The moving major tag (`v1` by default) is re-pointed at the release, and the
+release notes list the classified commits. The same logic can be previewed
+locally:
+
+```bash
+GITHUB_REPOSITORY=stackgenhq/cce-action GITHUB_SHA=$(git rev-parse HEAD) \
+  bash .github/scripts/cut-release.sh --dry-run
+```

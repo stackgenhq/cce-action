@@ -1,0 +1,71 @@
+name: Release
+
+# Cuts a versioned release of cce-action. Run from the Actions tab on main:
+# "Run workflow" with an optional explicit version (e.g. v0.2.0); when left
+# empty the version is derived from the commit subjects since the last tag
+# (.github/scripts/classify-commits.py). The moving major tag (v1 by default)
+# is re-pointed at the release (best effort).
+#
+# The release refuses to run unless a Self-test run is green for the exact
+# commit being released, so a red main can never ship a tag.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to cut (e.g. v0.2.0). Empty = derive from commits since the last tag."
+        required: false
+        default: ""
+      major-tag:
+        description: "Moving major tag to re-point at the release (empty skips)."
+        required: false
+        default: "v1"
+      notes:
+        description: "Optional one-line summary at the top of the release notes."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a green Self-test for the release target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          green=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${RELEASE_SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | select(.name == "Self-test" and .conclusion == "success")] | length')
+          if [ "$green" -lt 1 ]; then
+            echo "::error::No successful Self-test run for ${GITHUB_REPOSITORY}@${RELEASE_SHA}. Re-run Self-test on main before releasing."
+            exit 1
+          fi
+          echo "Self-test is green for ${RELEASE_SHA}."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: version derivation and notes need the commits since
+          # the last tag.
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Cut release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: main
+          RELEASE_VERSION: ${{ inputs.version }}
+          MAJOR_TAG: ${{ inputs.major-tag }}
+          NOTES_LINE: ${{ inputs.notes }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/cut-release.sh
