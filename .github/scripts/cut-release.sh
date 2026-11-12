@@ -91,6 +91,15 @@ if [ "$dry_run" = true ]; then
 fi
 
 : "${GH_TOKEN:?GH_TOKEN is required to push tags and create the release}"
+
+# Annotated tags need a committer identity; GitHub runners have none. Fall
+# back to github-actions[bot] only when the environment provides none, so a
+# local manual run still tags with the user's own identity.
+if [ -z "$(git config user.email || true)" ]; then
+  git config user.name "github-actions[bot]"
+  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+fi
+
 git tag -a "$version" -m "Release $version" "$sha"
 git push origin "refs/tags/$version"
 
