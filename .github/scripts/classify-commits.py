@@ -62,6 +62,10 @@ def classify(subject: str) -> str:
 
 def bump_version(last: str, kinds: set) -> str:
     m = re.match(r"v?(\d+)\.(\d+)\.(\d+)", last)
+    if m is None:
+        # Guard: a non-semver tag (e.g. the moving major tag "v1") reached this
+        # far once and produced an opaque traceback; fail loudly instead.
+        sys.exit(f"error: CUT_LAST_TAG is not a semver tag: {last!r}")
     major, minor, patch = (int(m.group(i)) for i in (1, 2, 3))
     if "breaking" in kinds or "minor" in kinds:
         minor, patch = minor + 1, 0
