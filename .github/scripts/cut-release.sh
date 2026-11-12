@@ -43,7 +43,10 @@ if ! git rev-parse -q --verify "${sha}^{commit}" >/dev/null; then
   exit 1
 fi
 
-last_tag=$(git describe --tags --abbrev=0 "${sha}" 2>/dev/null || true)
+# Last *semver* tag reachable from the target. Do NOT use "git describe
+# --tags --abbrev=0": the moving major tag (v1) is also a plain tag and
+# describe may return it (it did: "v1" is not a version we can bump from).
+last_tag=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --merged "$sha" --sort=-v:refname | head -1)
 if [ -z "$last_tag" ]; then
   if [ -z "$version" ]; then
     echo "::error::no previous tag to derive from; set RELEASE_VERSION explicitly" >&2
