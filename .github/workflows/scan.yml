@@ -21,6 +21,18 @@ on:
         description: Opt in to StackGen field diagnostics (off by default)
         type: boolean
         default: false
+      lens:
+        description: Workspace-relative lens YAML or HTTPS URL
+        type: string
+        default: ""
+      lens-sha256:
+        description: Expected lens file SHA-256 (required for HTTPS)
+        type: string
+        default: ""
+      lens-required:
+        description: Fail when the lens adds no unique operations
+        type: boolean
+        default: false
       export-policies:
         description: Export aws-iam, gcp-iam, azure-rbac, and esbom
         type: boolean
@@ -37,14 +49,18 @@ on:
         description: Wall-clock seconds allowed for the cce scan itself (0 = no limit)
         type: string
         default: "0"
+      output-dir:
+        description: Directory where scan artifacts are written
+        type: string
+        default: cce-results
       artifact-name:
         description: Name of the uploaded artifact
         type: string
         default: cce-results
       image:
-        description: CCE container image (job runs in this image; cce is preinstalled)
+        description: CCE container image (defaults to the action-tested CLI release)
         type: string
-        default: ghcr.io/stackgenhq/cce:latest
+        default: ghcr.io/stackgenhq/cce:0.0.38
     outputs:
       version:
         description: Installed cce version
@@ -55,6 +71,12 @@ on:
       entitlement-count:
         description: Total entitlements found
         value: ${{ jobs.scan.outputs.entitlement-count }}
+      lens-file-sha256:
+        description: Verified local lens digest or configured remote pin
+        value: ${{ jobs.scan.outputs.lens-file-sha256 }}
+      lens-new-operation-count:
+        description: Unique operations added by the lens when requested
+        value: ${{ jobs.scan.outputs.lens-new-operation-count }}
 
 permissions:
   contents: read
@@ -67,6 +89,8 @@ jobs:
       version: ${{ steps.cce.outputs.version }}
       report-path: ${{ steps.cce.outputs.report-path }}
       entitlement-count: ${{ steps.cce.outputs.entitlement-count }}
+      lens-file-sha256: ${{ steps.cce.outputs.lens-file-sha256 }}
+      lens-new-operation-count: ${{ steps.cce.outputs.lens-new-operation-count }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -82,6 +106,10 @@ jobs:
           language: ${{ inputs.language }}
           filter: ${{ inputs.filter }}
           diagnostics: ${{ inputs.diagnostics }}
+          lens: ${{ inputs.lens }}
+          lens-sha256: ${{ inputs.lens-sha256 }}
+          lens-required: ${{ inputs.lens-required }}
+          output-dir: ${{ inputs.output-dir }}
           export-policies: ${{ inputs.export-policies }}
           fail-on-empty: ${{ inputs.fail-on-empty }}
           log-level: ${{ inputs.log-level }}
@@ -93,5 +121,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          path: cce-results/*
+          path: ${{ inputs.output-dir }}/*
           if-no-files-found: warn

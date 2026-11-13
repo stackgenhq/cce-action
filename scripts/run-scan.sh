@@ -12,12 +12,18 @@ export_policies="${INPUT_EXPORT_POLICIES:-true}"
 fail_on_empty="${INPUT_FAIL_ON_EMPTY:-false}"
 log_level="${INPUT_LOG_LEVEL:-info}"
 scan_timeout="${INPUT_SCAN_TIMEOUT:-0}"
+lens="${INPUT_LENS:-}"
+lens_sha256="${INPUT_LENS_SHA256:-}"
+lens_required="${INPUT_LENS_REQUIRED:-false}"
 
 if ! command -v cce >/dev/null 2>&1; then
   echo "::error::cce is not on PATH; install-cce.sh must run first"
   exit 1
 fi
 
+if [[ "$path" != /* ]]; then
+  path="${GITHUB_WORKSPACE:-$PWD}/$path"
+fi
 if [[ ! -d "$path" ]]; then
   echo "::error::scan path does not exist: $path"
   exit 1
@@ -34,7 +40,57 @@ if [[ "$log_level" == "debug" ]]; then
   echo "::warning::log-level=debug streams one DEBUG line per unmapped SDK call; large or SDK-heavy repos can produce tens of MB of logs and may slow CI log ingestion. Prefer diagnostics=true with log-level=info."
 fi
 
-echo "Scanning $path (language=$language filter=$filter diagnostics=${CCE_DIAGNOSTICS:-false})"
+if [[ "$lens_required" == "true" && -z "$lens" ]]; then
+  echo "::error::lens-required=true requires a lens"
+  exit 1
+fi
+if [[ "$lens_required" == "true" && "$format" != "json" ]]; then
+  echo "::error::lens-required=true requires format=json so unique operation growth can be measured"
+  exit 1
+fi
+
+# A repository-local lens is already pinned by the checkout. Hash its exact
+# bytes as provenance and pass that pin to CCE; a remote lens needs a caller-
+# supplied expected hash because there is no repository commit protecting it.
+lens_args=()
+lens_file_sha256=""
+if [[ -n "$lens" ]]; then
+  if [[ "$lens" =~ ^[Hh][Tt][Tt][Pp][Ss]:// ]]; then
+    if [[ -z "$lens_sha256" ]]; then
+      echo "::error::lens-sha256 is required for an HTTPS lens so remote content cannot change unnoticed"
+      exit 1
+    fi
+    lens_file_sha256="$lens_sha256"
+  elif [[ "$lens" =~ ^[a-zA-Z][a-zA-Z0-9+.-]*:// ]]; then
+    echo "::error::lens must be a workspace file or HTTPS URL: $lens"
+    exit 1
+  else
+    if [[ "$lens" != /* ]]; then
+      lens="${GITHUB_WORKSPACE:-$PWD}/$lens"
+    fi
+    if [[ ! -f "$lens" ]]; then
+      echo "::error::lens file does not exist: $lens"
+      exit 1
+    fi
+    actual_sha="$(sha256sum "$lens" | awk '{print $1}')"
+    if [[ -n "$lens_sha256" && "$lens_sha256" != "$actual_sha" ]]; then
+      echo "::error::lens-sha256 mismatch for $lens: expected $lens_sha256, got $actual_sha"
+      exit 1
+    fi
+    lens_sha256="$actual_sha"
+    lens_file_sha256="$actual_sha"
+  fi
+  if ! cce --help 2>&1 | grep -q -- '--mapper-sha256'; then
+    echo "::error::Pinned lenses require CCE >= 0.0.38; set image to ghcr.io/stackgenhq/cce:0.0.38 or newer."
+    exit 1
+  fi
+  lens_args=(--mapper-file "$lens" --mapper-sha256 "$lens_sha256")
+  if [[ "$filter" == "cloud" ]]; then
+    echo "::notice::A lens with custom providers such as TECH_DEBT requires filter=all; filter=cloud keeps cloud providers only."
+  fi
+fi
+
+echo "Scanning $path (language=$language filter=$filter diagnostics=${CCE_DIAGNOSTICS:-false} lens=${lens:-built-in})"
 
 run_scan() {
   local args=(
@@ -44,6 +100,7 @@ run_scan() {
     --format "$format"
     --log-level "$log_level"
     --output "$report_path"
+    "${lens_args[@]}"
   )
   if [[ "$scan_timeout" != "0" && "$scan_timeout" != "" ]] && command -v timeout >/dev/null 2>&1; then
     # Fail fast on huge repos instead of letting the job burn its whole runner
@@ -75,6 +132,27 @@ if [[ "$format" == "json" ]]; then
     # Container image may not ship jq; keep the count best-effort.
     entitlement_count=$(grep -Eo '"total_entitlements"[[:space:]]*:[[:space:]]*[0-9]+' "$report_path" | head -1 | grep -Eo '[0-9]+$' || echo 0)
   fi
+fi
+
+lens_new_operation_count=""
+if [[ "$lens_required" == "true" ]]; then
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "::error::lens-required=true requires jq on the runner"
+    exit 1
+  fi
+  baseline_path="${output_dir}/baseline-without-lens.json"
+  lens_diff_path="${output_dir}/lens-added.json"
+  echo "Measuring lens value against the built-in catalog (diagnostics disabled for baseline)"
+  CCE_DIAGNOSTICS=false cce \
+    --folder "$path" --language "$language" --filter "$filter" --format json \
+    --log-level "$log_level" --output "$baseline_path"
+  cce diff "$baseline_path" "$report_path" --mode tuple --format json -o "$lens_diff_path"
+  lens_new_operation_count="$(jq -r '.added | length' "$lens_diff_path")"
+  if [[ "$lens_new_operation_count" == "0" ]]; then
+    echo "::error::lens added no unique provider/resource/operation mappings (lens-required=true). See $lens_diff_path"
+    exit 1
+  fi
+  echo "Lens added $lens_new_operation_count unique operation(s)"
 fi
 
 if [[ "$fail_on_empty" == "true" && "$entitlement_count" == "0" ]]; then
@@ -135,7 +213,25 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
     echo "azure-rbac-path=$azure_rbac_path"
     echo "esbom-path=$esbom_path"
     echo "entitlement-count=$entitlement_count"
+    echo "lens-file-sha256=$lens_file_sha256"
+    echo "lens-new-operation-count=$lens_new_operation_count"
   } >> "$GITHUB_OUTPUT"
+fi
+
+if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+  {
+    echo "### CCE scan"
+    echo
+    echo "- Entitlements: **$entitlement_count**"
+    echo "- Report: \`$report_path\`"
+    if [[ -n "$lens" ]]; then
+      echo "- Lens: \`$lens\`"
+      echo "- Lens SHA-256: \`$lens_file_sha256\`"
+    fi
+    if [[ -n "$lens_new_operation_count" ]]; then
+      echo "- Unique operations added by lens: **$lens_new_operation_count**"
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
 fi
 
 echo "CCE scan complete: entitlements=$entitlement_count report=$report_path"

@@ -1,0 +1,12 @@
+# Bad change: adds the requests rule but drops the httpx rule — the verify
+# harness must flag the lost httpx row as a regression.
+definition:
+  language:
+    python:
+      - name: "Legacy requests library"
+        prefix: "requests."
+        rule: "requests\\.(?<operation>[a-zA-Z0-9_]+)"
+        provider: TECH_DEBT
+  providers:
+    TECH_DEBT:
+      servicenameMapping: {}

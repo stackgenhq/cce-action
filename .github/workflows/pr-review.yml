@@ -1,0 +1,384 @@
+name: CCE PR review (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Directory to scan inside the checked-out repository
+        type: string
+        default: "."
+      language:
+        description: "Language: GO, PYTHON, JAVA, JAVASCRIPT, or AUTO"
+        type: string
+        default: AUTO
+      filter:
+        description: "Result filter: cloud or all"
+        type: string
+        default: cloud
+      lens:
+        description: Local lens path or remote lens URL
+        type: string
+        default: ""
+      lens-sha256:
+        description: Expected SHA-256 of the lens file bytes
+        type: string
+        default: ""
+      base-ref:
+        description: Baseline ref (falls back to the pull request base, then main)
+        type: string
+        default: ""
+      policy:
+        description: Optional CCE policy YAML used to gate the diff
+        type: string
+        default: ""
+      fail-new:
+        description: Fail when the diff adds entitlements
+        type: boolean
+        default: false
+      comment:
+        description: Create or update the sticky pull request comment
+        type: boolean
+        default: true
+      upload-sarif:
+        description: Generate SARIF and upload it to Code Scanning
+        type: boolean
+        default: true
+      artifact-name:
+        description: Name of the uploaded results artifact
+        type: string
+        default: cce-pr-review
+      image:
+        description: Container image used to install CCE
+        type: string
+        default: ghcr.io/stackgenhq/cce:0.0.38
+    outputs:
+      report-path:
+        description: Path to the current JSON scan report
+        value: ${{ jobs.review.outputs.report-path }}
+      diff-path:
+        description: Path to the policy-free JSON diff
+        value: ${{ jobs.review.outputs.diff-path }}
+      markdown-path:
+        description: Path to the markdown diff, including policy results
+        value: ${{ jobs.review.outputs.markdown-path }}
+      added-count:
+        description: Number of added entitlements
+        value: ${{ jobs.review.outputs.added-count }}
+      removed-count:
+        description: Number of removed entitlements
+        value: ${{ jobs.review.outputs.removed-count }}
+      entitlement-count:
+        description: Number of entitlements in the current report
+        value: ${{ jobs.review.outputs.entitlement-count }}
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    outputs:
+      report-path: ${{ steps.current.outputs.report-path }}
+      diff-path: cce-results/diff.json
+      markdown-path: cce-results/api-diff.md
+      added-count: ${{ steps.results.outputs.added-count }}
+      removed-count: ${{ steps.results.outputs.removed-count }}
+      entitlement-count: ${{ steps.current.outputs.entitlement-count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve baseline ref and lens
+        id: resolve
+        shell: bash
+        env:
+          INPUT_BASE_REF: ${{ inputs.base-ref }}
+          PR_BASE_REF: ${{ github.base_ref }}
+          INPUT_LENS: ${{ inputs.lens }}
+          INPUT_LENS_SHA256: ${{ inputs.lens-sha256 }}
+        run: |
+          set -euo pipefail
+
+          base_ref="${INPUT_BASE_REF:-${PR_BASE_REF:-main}}"
+          lens="$INPUT_LENS"
+          lens_sha256="$INPUT_LENS_SHA256"
+
+          case "$lens" in
+            "")
+              ;;
+            https://*)
+              if [[ -z "$lens_sha256" ]]; then
+                echo "::error::lens-sha256 is required for a remote HTTPS lens"
+                exit 1
+              fi
+              ;;
+            http://*)
+              echo "::error::Remote lenses must use HTTPS"
+              exit 1
+              ;;
+            *)
+              if [[ "$lens" != /* ]]; then
+                lens="${GITHUB_WORKSPACE}/${lens}"
+              fi
+              if [[ ! -f "$lens" ]]; then
+                echo "::error::Local lens does not exist: $lens"
+                exit 1
+              fi
+              # The baseline lives in another worktree, so both scans must use
+              # the current workspace's absolute lens path and exact bytes.
+              lens="$(realpath "$lens")"
+              actual_sha="$(sha256sum "$lens" | awk '{print $1}')"
+              if [[ -n "$lens_sha256" && "$lens_sha256" != "$actual_sha" ]]; then
+                echo "::error::Lens SHA-256 mismatch: expected $lens_sha256, got $actual_sha"
+                exit 1
+              fi
+              lens_sha256="$actual_sha"
+              ;;
+          esac
+
+          {
+            printf 'base-ref=%s\n' "$base_ref"
+            printf 'lens=%s\n' "$lens"
+            printf 'lens-sha256=%s\n' "$lens_sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Scan current source
+        id: current
+        uses: stackgenhq/cce-action@v1
+        with:
+          path: ${{ inputs.path }}
+          language: ${{ inputs.language }}
+          filter: ${{ inputs.filter }}
+          lens: ${{ steps.resolve.outputs.lens }}
+          lens-sha256: ${{ steps.resolve.outputs.lens-sha256 }}
+          format: json
+          output-dir: cce-results/current
+          export-policies: false
+          image: ${{ inputs.image }}
+
+      - name: Scan baseline source
+        id: baseline
+        shell: bash
+        env:
+          BASE_REF: ${{ steps.resolve.outputs.base-ref }}
+          BASE_WORKTREE: /tmp/cce-base
+          SCAN_PATH: ${{ inputs.path }}
+          SCAN_LANGUAGE: ${{ inputs.language }}
+          SCAN_FILTER: ${{ inputs.filter }}
+          CCE_LENS: ${{ steps.resolve.outputs.lens }}
+          CCE_LENS_SHA256: ${{ steps.resolve.outputs.lens-sha256 }}
+          BASELINE_REPORT: cce-results/baseline/scan.json
+        run: |
+          set -euo pipefail
+
+          git worktree add --detach "$BASE_WORKTREE" "origin/${BASE_REF}"
+
+          baseline_folder="${BASE_WORKTREE}/${SCAN_PATH}"
+          if [[ ! -d "$baseline_folder" ]]; then
+            echo "::error::Baseline scan path does not exist: $baseline_folder"
+            exit 1
+          fi
+          mkdir -p "$(dirname "$BASELINE_REPORT")"
+
+          args=(
+            --folder "$baseline_folder"
+            --language "$SCAN_LANGUAGE"
+            --filter "$SCAN_FILTER"
+            --format json
+            --output "$BASELINE_REPORT"
+          )
+          if [[ -n "$CCE_LENS" ]]; then
+            args+=(--mapper-file "$CCE_LENS")
+          fi
+          if [[ -n "$CCE_LENS_SHA256" ]]; then
+            args+=(--mapper-sha256 "$CCE_LENS_SHA256")
+          fi
+          cce "${args[@]}"
+
+      - name: Generate JSON and policy markdown diffs
+        id: diff
+        shell: bash
+        env:
+          BASELINE_REPORT: cce-results/baseline/scan.json
+          CURRENT_REPORT: cce-results/current/scan.json
+          JSON_DIFF: cce-results/diff.json
+          MARKDOWN_DIFF: cce-results/api-diff.md
+          INPUT_POLICY: ${{ inputs.policy }}
+          INPUT_FAIL_NEW: ${{ inputs.fail-new }}
+          POLICY_STATUS_FILE: cce-results/policy-status
+        run: |
+          set -euo pipefail
+
+          if ! cce diff --help 2>&1 | grep -q markdown; then
+            echo "::error::CCE Markdown diff requires CCE >= 0.0.38; set image to ghcr.io/stackgenhq/cce:0.0.38 or newer."
+            exit 1
+          fi
+
+          # Keep the machine-readable diff policy-free. Policy is evaluated only
+          # for the human-facing markdown and the deferred final gate.
+          cce diff "$BASELINE_REPORT" "$CURRENT_REPORT" \
+            --format json --output "$JSON_DIFF"
+
+          args=(
+            "$BASELINE_REPORT"
+            "$CURRENT_REPORT"
+            --format markdown
+            --output "$MARKDOWN_DIFF"
+          )
+          if [[ -n "$INPUT_POLICY" ]]; then
+            args+=(--policy "$INPUT_POLICY")
+          fi
+          if [[ "$INPUT_FAIL_NEW" == "true" ]]; then
+            args+=(--fail-new)
+          fi
+
+          policy_status=0
+          cce diff "${args[@]}" || policy_status=$?
+          printf '%s\n' "$policy_status" > "$POLICY_STATUS_FILE"
+
+      - name: Record diff counts
+        id: results
+        shell: bash
+        env:
+          JSON_DIFF: cce-results/diff.json
+        run: |
+          set -euo pipefail
+
+          added_count="$(jq -r '(.added // []) | length' "$JSON_DIFF")"
+          removed_count="$(jq -r '(.removed // []) | length' "$JSON_DIFF")"
+          {
+            printf 'added-count=%s\n' "$added_count"
+            printf 'removed-count=%s\n' "$removed_count"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Explain fork publishing restrictions
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "::notice::Sticky PR comments are skipped for fork pull requests."
+          echo "::notice::SARIF generation and upload are skipped for fork pull requests."
+
+      - name: Create or update sticky PR comment
+        if: inputs.comment && github.event_name == 'pull_request' && !github.event.pull_request.head.repo.fork
+        uses: actions/github-script@v7
+        env:
+          MARKDOWN_PATH: cce-results/api-diff.md
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync(process.env.MARKDOWN_PATH, 'utf8');
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(comment =>
+              comment.body && comment.body.includes('<!-- cce-api-diff -->')
+            );
+            const params = {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            };
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...params,
+                comment_id: existing.id,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...params,
+                issue_number,
+              });
+            }
+
+      - name: Generate SARIF from current source
+        if: inputs.upload-sarif && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork)
+        shell: bash
+        env:
+          SCAN_PATH: ${{ inputs.path }}
+          SCAN_LANGUAGE: ${{ inputs.language }}
+          SCAN_FILTER: ${{ inputs.filter }}
+          CCE_LENS: ${{ steps.resolve.outputs.lens }}
+          CCE_LENS_SHA256: ${{ steps.resolve.outputs.lens-sha256 }}
+          SARIF_PATH: cce-results/current/scan.sarif
+        run: |
+          set -euo pipefail
+
+          args=(
+            --folder "$SCAN_PATH"
+            --language "$SCAN_LANGUAGE"
+            --filter "$SCAN_FILTER"
+            --format sarif
+            --output "$SARIF_PATH"
+          )
+          if [[ -n "$CCE_LENS" ]]; then
+            args+=(--mapper-file "$CCE_LENS")
+          fi
+          if [[ -n "$CCE_LENS_SHA256" ]]; then
+            args+=(--mapper-sha256 "$CCE_LENS_SHA256")
+          fi
+          cce "${args[@]}"
+
+      - name: Upload SARIF to Code Scanning
+        if: inputs.upload-sarif && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cce-results/current/scan.sarif
+
+      - name: Upload review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: cce-results/
+          if-no-files-found: warn
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        env:
+          CURRENT_ENTITLEMENT_COUNT: ${{ steps.current.outputs.entitlement-count }}
+          ADDED_COUNT: ${{ steps.results.outputs.added-count }}
+          REMOVED_COUNT: ${{ steps.results.outputs.removed-count }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo '## CCE PR review'
+            echo
+            echo '| Metric | Count |'
+            echo '| --- | ---: |'
+            printf '| Current entitlements | %s |\n' "${CURRENT_ENTITLEMENT_COUNT:-0}"
+            printf '| Added entitlements | %s |\n' "${ADDED_COUNT:-0}"
+            printf '| Removed entitlements | %s |\n' "${REMOVED_COUNT:-0}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce captured policy diff status
+        if: always()
+        shell: bash
+        env:
+          POLICY_STATUS_FILE: cce-results/policy-status
+        run: |
+          set -euo pipefail
+
+          policy_status=0
+          if [[ -f "$POLICY_STATUS_FILE" ]]; then
+            policy_status="$(cat "$POLICY_STATUS_FILE")"
+          fi
+          if [[ ! "$policy_status" =~ ^[0-9]+$ ]]; then
+            echo "::error::Invalid captured CCE policy status: $policy_status"
+            exit 1
+          fi
+          if (( policy_status != 0 )); then
+            echo "::error::CCE policy diff failed with exit status $policy_status"
+            exit "$policy_status"
+          fi

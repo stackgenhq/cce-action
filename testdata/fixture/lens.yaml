@@ -1,0 +1,7 @@
+definition:
+  language:
+    python:
+      - name: Legacy requests inventory
+        prefix: "requests."
+        rule: "requests\\.%{WORD:operation}"
+        provider: TECH_DEBT

@@ -1,0 +1,105 @@
+name: CCE quickstart
+description: Generate a Cloud API BOM, HTML report, SARIF, lens lockfile, and optional CI workflow.
+author: StackGen
+
+branding:
+  icon: zap
+  color: blue
+
+inputs:
+  path:
+    description: Directory to scan (relative to the workspace). Caller should check out the repo first.
+    required: false
+    default: "."
+  lens:
+    description: Local custom lens YAML or HTTPS URL. Remote lenses require lens-sha256.
+    required: false
+    default: ""
+  lens-sha256:
+    description: Expected SHA-256 of the lens file bytes. Calculated automatically for local lenses when omitted.
+    required: false
+    default: ""
+  policy:
+    description: Optional local IAM policy JSON for potential-drift review (otherwise CCE auto-detects one).
+    required: false
+    default: ""
+  write-workflow:
+    description: Generate .github/workflows/cce.yml if absent. Existing workflows are never overwritten.
+    required: false
+    default: "true"
+  output-dir:
+    description: Directory for the complete quickstart artifact set.
+    required: false
+    default: cce-results/quickstart
+  upload-artifact:
+    description: Upload the complete quickstart artifact set with actions/upload-artifact.
+    required: false
+    default: "true"
+  artifact-name:
+    description: Name of the uploaded artifact.
+    required: false
+    default: cce-quickstart
+  image:
+    description: Container image used to install the cce binary (copied onto PATH).
+    required: false
+    default: ghcr.io/stackgenhq/cce:0.0.38
+
+outputs:
+  version:
+    description: Installed cce version.
+    value: ${{ steps.install.outputs.version }}
+  image:
+    description: Container image used for install, or preinstalled.
+    value: ${{ steps.install.outputs.image }}
+  bom-path:
+    description: Path to the Cloud API BOM JSON.
+    value: ${{ steps.run.outputs.bom-path }}
+  html-path:
+    description: Path to the self-contained HTML report.
+    value: ${{ steps.run.outputs.html-path }}
+  sarif-path:
+    description: Path to the SARIF report.
+    value: ${{ steps.run.outputs.sarif-path }}
+  lens-lock-path:
+    description: Path to the lens provenance lockfile.
+    value: ${{ steps.run.outputs.lens-lock-path }}
+  workflow-path:
+    description: Path to the workflow copy in the artifact set, or empty when no source workflow exists.
+    value: ${{ steps.run.outputs.workflow-path }}
+  entitlement-count:
+    description: Total entitlements found in the Cloud API BOM.
+    value: ${{ steps.run.outputs.entitlement-count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install cce
+      id: install
+      shell: bash
+      env:
+        INPUT_IMAGE: ${{ inputs.image }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/../scripts/install-cce.sh"
+
+    - name: Run quickstart
+      id: run
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_LENS: ${{ inputs.lens }}
+        INPUT_LENS_SHA256: ${{ inputs.lens-sha256 }}
+        INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_WRITE_WORKFLOW: ${{ inputs.write-workflow }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/../scripts/run-quickstart.sh"
+
+    - name: Upload quickstart results
+      if: ${{ always() && inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-dir }}
+        if-no-files-found: warn

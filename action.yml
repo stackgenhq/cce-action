@@ -31,6 +31,18 @@ inputs:
     description: "Opt in to StackGen field diagnostics for unmapped method signatures (off by default)"
     required: false
     default: "false"
+  lens:
+    description: "Custom lens YAML path (workspace-relative) or HTTPS URL; mapped to cce --mapper-file"
+    required: false
+    default: ""
+  lens-sha256:
+    description: "Expected SHA-256 of lens file bytes. Required for HTTPS lenses; local lenses are hashed automatically when omitted"
+    required: false
+    default: ""
+  lens-required:
+    description: "Run a built-in baseline and fail when the lens adds no unique provider/resource/operation mappings (JSON only)"
+    required: false
+    default: "false"
   export-policies:
     description: "Export aws-iam, gcp-iam, azure-rbac, and esbom from the scan report"
     required: false
@@ -48,9 +60,9 @@ inputs:
     required: false
     default: "0"
   image:
-    description: "Container image used to install the cce binary (copied onto PATH)"
+    description: "Container image used to install the cce binary (copied onto PATH). Defaults to the CLI version tested by this action release"
     required: false
-    default: ghcr.io/stackgenhq/cce:latest
+    default: ghcr.io/stackgenhq/cce:0.0.38
 
 outputs:
   version:
@@ -77,6 +89,12 @@ outputs:
   entitlement-count:
     description: Total entitlements found in the scan report
     value: ${{ steps.scan.outputs.entitlement-count }}
+  lens-file-sha256:
+    description: Verified local lens digest or configured remote lens pin (empty without a lens)
+    value: ${{ steps.scan.outputs.lens-file-sha256 }}
+  lens-new-operation-count:
+    description: Unique operations added by the lens when lens-required is true
+    value: ${{ steps.scan.outputs.lens-new-operation-count }}
 
 runs:
   using: composite
@@ -100,6 +118,9 @@ runs:
         INPUT_FORMAT: ${{ inputs.format }}
         INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
         INPUT_DIAGNOSTICS: ${{ inputs.diagnostics }}
+        INPUT_LENS: ${{ inputs.lens }}
+        INPUT_LENS_SHA256: ${{ inputs.lens-sha256 }}
+        INPUT_LENS_REQUIRED: ${{ inputs.lens-required }}
         INPUT_EXPORT_POLICIES: ${{ inputs.export-policies }}
         INPUT_FAIL_ON_EMPTY: ${{ inputs.fail-on-empty }}
         INPUT_LOG_LEVEL: ${{ inputs.log-level }}

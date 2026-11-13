@@ -1,0 +1,104 @@
+name: CCE lens verify
+description: Run CCE lens Gate 0 against a deterministic fixture corpus and emit newly mapped and regressed evidence.
+author: StackGen
+
+branding:
+  icon: check-circle
+  color: blue
+
+inputs:
+  fixture:
+    description: Fixture corpus directory, relative to the workspace unless absolute
+    required: true
+  candidate:
+    description: Candidate lens YAML (local path or pinned HTTPS URL)
+    required: true
+  current:
+    description: Baseline lens YAML (local path or pinned HTTPS URL); empty uses the built-in catalog
+    required: false
+    default: ""
+  candidate-sha256:
+    description: Candidate lens SHA-256 pin; calculated automatically for a local lens when omitted
+    required: false
+    default: ""
+  current-sha256:
+    description: Current lens SHA-256 pin; calculated automatically for a local lens when omitted
+    required: false
+    default: ""
+  language:
+    description: "Language scope: AUTO, GO, PYTHON, JAVA, or JAVASCRIPT"
+    required: false
+    default: AUTO
+  fail-regression:
+    description: Fail the step when verification finds regressed rows
+    required: false
+    default: "true"
+  output-dir:
+    description: Directory for the lens verdict JSON
+    required: false
+    default: cce-results/lens-verify
+  image:
+    description: Container image used to install cce (Gate 0 requires CCE 0.0.38 or newer)
+    required: false
+    default: ghcr.io/stackgenhq/cce:0.0.38
+  upload-artifact:
+    description: Upload the verdict JSON even when verification fails
+    required: false
+    default: "true"
+  artifact-name:
+    description: Name of the uploaded verdict artifact
+    required: false
+    default: cce-lens-verify
+
+outputs:
+  verdict-path:
+    description: Path to the verdict JSON evidence
+    value: ${{ steps.verify.outputs.verdict-path }}
+  verdict:
+    description: Lens verification verdict (ok or regression)
+    value: ${{ steps.verify.outputs.verdict }}
+  newly-mapped-count:
+    description: Number of newly mapped fixture rows
+    value: ${{ steps.verify.outputs.newly-mapped-count }}
+  regressed-count:
+    description: Number of regressed fixture rows
+    value: ${{ steps.verify.outputs.regressed-count }}
+  candidate-sha256:
+    description: SHA-256 pin supplied to CCE for the candidate lens
+    value: ${{ steps.verify.outputs.candidate-sha256 }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install cce
+      id: install
+      shell: bash
+      env:
+        INPUT_IMAGE: ${{ inputs.image }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/../scripts/install-cce.sh"
+
+    - name: Verify lens
+      id: verify
+      shell: bash
+      env:
+        INPUT_FIXTURE: ${{ inputs.fixture }}
+        INPUT_CANDIDATE: ${{ inputs.candidate }}
+        INPUT_CURRENT: ${{ inputs.current }}
+        INPUT_CANDIDATE_SHA256: ${{ inputs.candidate-sha256 }}
+        INPUT_CURRENT_SHA256: ${{ inputs.current-sha256 }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_FAIL_REGRESSION: ${{ inputs.fail-regression }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/../scripts/run-lens-verify.sh"
+
+    - name: Upload lens verdict
+      if: ${{ always() && inputs.upload-artifact == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-dir }}/verdict.json
+        if-no-files-found: warn

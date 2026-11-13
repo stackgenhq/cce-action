@@ -1,0 +1,15 @@
+# .github/workflows/cce-quickstart.yml
+name: CCE quickstart
+on: workflow_dispatch
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  quickstart:
+    uses: stackgenhq/cce-action/.github/workflows/quickstart.yml@v1
+    with:
+      path: .
+      # lens: .cce/cloud.yaml
+      write-workflow: true
