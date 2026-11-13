@@ -18,6 +18,7 @@ Open <http://localhost:8000>.
 ## Update the site
 
 - Edit `index.html` for content and `assets/styles.css` for presentation.
+- Keep `index.md` as the clean Markdown equivalent for agents and users who prefer plain text. `llms.txt` is the concise, curated site index; do not turn it into a dump of the entire site.
 - Keep examples aligned with the versioned files in `../examples/`.
 - Link to the action README for exhaustive input/output tables rather than
   duplicating every option on the landing page.
