@@ -1,0 +1,25 @@
+# Run this workflow from any repository to scan the pinned public example.
+name: CCE public repository example
+on: workflow_dispatch
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aws-samples/aws-lambda-extensions
+          ref: cfed93e212d6415115d6a0a8a10885cded5a2b3b
+      - uses: stackgenhq/cce-action@v1
+        with:
+          language: PYTHON
+          filter: cloud
+          output-dir: cce-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cce-public-repo-results
+          path: cce-results/*

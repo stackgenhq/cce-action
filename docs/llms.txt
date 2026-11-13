@@ -1,0 +1,43 @@
+# CCE Action
+
+> CCE Action turns Go, Python, Java, and JavaScript source into Cloud API evidence inside GitHub Actions, including inventories, PR diffs, IAM access requests, SARIF, and custom lens verification.
+
+Use this file to choose the smallest useful document. The developer guide is clean Markdown. Workflow examples and action references link directly to raw YAML so agents can inspect exact inputs without parsing HTML.
+
+CCE Action requires no CCE account. Diagnostics are off by default. Static results are review evidence, not proof of runtime coverage or ready-to-deploy IAM policy. Use `filter: all` for custom lens providers. Remote lenses require HTTPS and a SHA-256 pin.
+
+## Start here
+
+- [CCE Action developer guide](https://stackgenhq.github.io/cce-action/index.md): Quick start, capabilities, requirements, examples, security defaults, and limitations in Markdown.
+- [Action README](https://raw.githubusercontent.com/stackgenhq/cce-action/main/README.md): Complete scan inputs, outputs, exports, versioning, and operating notes.
+
+## Workflow examples
+
+- [Public repository scan with real output](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/public-repo.yml): Pinned AWS Samples checkout, Python scan, and artifact upload; the developer guide explains the resulting JSON.
+- [Repository scan](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/scan.yml): Reusable scan workflow and composite action alternatives.
+- [Cloud API pull-request review](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/pr-review.yml): Sticky Markdown diff, SARIF, artifacts, and optional gates.
+- [IAM access request](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/access-request.yml): Artifact-first `cce-access-request/v1` generation without a cross-repository token.
+- [Quickstart artifact bundle](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/quickstart.yml): Cloud API BOM, HTML, SARIF, lens lockfile, and suggested workflow.
+- [Lens Gate 0](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/lens-verify.yml): Fixture comparison with newly mapped and regressed evidence.
+
+## Exact action contracts
+
+- [Scan composite action](https://raw.githubusercontent.com/stackgenhq/cce-action/main/action.yml): Authoritative composite input and output definitions.
+- [Reusable scan workflow](https://raw.githubusercontent.com/stackgenhq/cce-action/main/.github/workflows/scan.yml): Reusable scan inputs and outputs.
+- [Access-request composite action](https://raw.githubusercontent.com/stackgenhq/cce-action/main/access-request/action.yml): IAM artifact inputs and outputs.
+- [Quickstart composite action](https://raw.githubusercontent.com/stackgenhq/cce-action/main/quickstart/action.yml): First-run artifact inputs and outputs.
+- [Lens verification composite action](https://raw.githubusercontent.com/stackgenhq/cce-action/main/lens-verify/action.yml): Gate 0 inputs and verdict outputs.
+
+## Related documentation
+
+- [CCE llms.txt](https://appcd-dev.github.io/cce/llms.txt): Curated index for the CCE CLI, lenses, recipes, diffs, exports, and limitations.
+- [CCE capabilities and examples](https://appcd-dev.github.io/cce/capabilities/index.md): Clean Markdown examples for the underlying CLI.
+- [Worked Cloud API inventory](https://appcd-dev.github.io/cce/examples/cloud-api-inventory/index.md): Verified public-repository output, field explanations, IAM interpretation, and boundaries.
+
+## Optional
+
+- [PR-review reusable workflow](https://raw.githubusercontent.com/stackgenhq/cce-action/main/.github/workflows/pr-review.yml): Full base/head review contract and publication controls.
+- [Access-request reusable workflow](https://raw.githubusercontent.com/stackgenhq/cce-action/main/.github/workflows/access-request.yml): Checkout and artifact-upload wrapper.
+- [Quickstart reusable workflow](https://raw.githubusercontent.com/stackgenhq/cce-action/main/.github/workflows/quickstart.yml): Quickstart wrapper contract.
+- [Lens verification reusable workflow](https://raw.githubusercontent.com/stackgenhq/cce-action/main/.github/workflows/lens-verify.yml): Lens Gate 0 wrapper contract.
+- [Source repository](https://github.com/stackgenhq/cce-action): Issues, releases, license, and implementation source.
