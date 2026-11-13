@@ -33,6 +33,7 @@ CCE Action requires no CCE account. Diagnostics are off by default. Static resul
 - [CCE llms.txt](https://appcd-dev.github.io/cce/llms.txt): Curated index for the CCE CLI, lenses, recipes, diffs, exports, and limitations.
 - [CCE capabilities and examples](https://appcd-dev.github.io/cce/capabilities/index.md): Clean Markdown examples for the underlying CLI.
 - [Worked Cloud API inventory](https://appcd-dev.github.io/cce/examples/cloud-api-inventory/index.md): Verified public-repository output, field explanations, IAM interpretation, and boundaries.
+- [Complete example JSON report](https://appcd-dev.github.io/cce/examples/assets/aws-lambda-extensions-python-0.0.38.json): All ten unabridged CCE 0.0.38 rows, including API operations, constructors, and resource accessors.
 
 ## Optional
 

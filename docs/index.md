@@ -97,6 +97,8 @@ CCE 0.0.38 examined 313 files and emitted 10 AWS evidence rows at the pinned com
 }
 ```
 
+[Download the complete, unabridged 10-row JSON report](https://appcd-dev.github.io/cce/examples/assets/aws-lambda-extensions-python-0.0.38.json). It contains four API operation rows (two `get_secret_value` and two correctly mapped S3 `put_object` calls), four client-construction rows, and two S3 `Bucket` accessor rows. The full field guide also expands the complete JSON inline.
+
 ### What it means and why it matters
 
 - `files_scanned` describes analysis scope, not the number of cloud calls.
