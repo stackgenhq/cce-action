@@ -1,6 +1,8 @@
 # cce-action
 
-GitHub Action and reusable workflow that runs [StackGen CCE](https://appcd-dev.github.io/cce/) against the repository where the workflow is running.
+**[Developer guide and examples](https://stackgenhq.github.io/cce-action/)** · [Workflow examples](examples/) · [CCE documentation](https://appcd-dev.github.io/cce/)
+
+GitHub Action and reusable workflows that run [StackGen CCE](https://appcd-dev.github.io/cce/) against the repository where the workflow is running.
 
 Both the composite action and the reusable workflow install `cce` by pulling
 [`ghcr.io/stackgenhq/cce`](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce)
@@ -215,7 +217,7 @@ or checking the repo size in a prior step.
 
 ## Versioning
 
-Use a major tag (`@v1`) or a pinned release (`@v0.2.0`). The action's default image is fixed to its tested CLI release; override `image` (for example `ghcr.io/stackgenhq/cce:0.0.38`) when you deliberately need another CLI.
+Use a major tag (`@v1`) or a pinned release (`@v0.3.0`). The action's default image is fixed to its tested CLI release; override `image` (for example `ghcr.io/stackgenhq/cce:0.0.38`) when you deliberately need another CLI.
 
 Releases are cut from the **Release** workflow (Actions tab -> Run workflow on
 `main`). The workflow refuses to release unless Self-test is green for the
