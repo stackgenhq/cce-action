@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CCE Action turns source code into clear Cloud API evidence, PR reviews, IAM access requests, and shareable reports—right inside GitHub Actions.">
+  <meta name="theme-color" content="#102a2a">
+  <meta property="og:title" content="CCE Action — Cloud API evidence in GitHub Actions">
+  <meta property="og:description" content="Understand cloud usage, review API changes, and prepare access requests without leaving your repository.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://stackgenhq.github.io/cce-action/">
+  <title>CCE Action — Cloud API evidence in GitHub Actions</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="CCE Action home">
+        <span class="brand-mark" aria-hidden="true">C</span>
+        <span>CCE Action</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#workflows">Workflows</a>
+        <a href="#lenses">Lenses</a>
+        <a href="#trust">Trust</a>
+        <a href="#quickstart">Quick start</a>
+      </nav>
+      <a class="button button-small button-outline" href="https://github.com/stackgenhq/cce-action">GitHub <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Open source · Built for GitHub Actions</p>
+          <h1>See the cloud APIs your code actually uses.</h1>
+          <p class="hero-lede">CCE Action reads your source code and turns cloud SDK calls into clear, reviewable evidence. Add one workflow to inventory APIs, review changes, and prepare IAM access requests.</p>
+          <div class="hero-actions">
+            <a class="button" href="#quickstart">Add CCE to your repo</a>
+            <a class="text-link" href="https://github.com/stackgenhq/cce-action/tree/main/examples">Browse examples <span aria-hidden="true">→</span></a>
+          </div>
+          <ul class="hero-notes" aria-label="Key benefits">
+            <li>No account required</li>
+            <li>Diagnostics off by default</li>
+            <li>Reports stay with your workflow</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" role="group" aria-label="Example Cloud API evidence">
+          <div class="report-card">
+            <div class="report-heading">
+              <div>
+                <span class="report-kicker">Cloud API inventory</span>
+                <h2>payments-api</h2>
+              </div>
+              <span class="status"><span aria-hidden="true"></span> Ready</span>
+            </div>
+            <div class="report-row">
+              <span class="provider provider-aws">AWS</span>
+              <div><strong>Amazon S3</strong><code>PutObject</code></div>
+              <span class="evidence">2 call sites</span>
+            </div>
+            <div class="report-row">
+              <span class="provider provider-gcp">GCP</span>
+              <div><strong>Cloud Storage</strong><code>bucket</code></div>
+              <span class="evidence">1 call site</span>
+            </div>
+            <div class="report-row">
+              <span class="provider provider-azure">Azure</span>
+              <div><strong>Blob Storage</strong><code>Upload</code></div>
+              <span class="evidence">3 call sites</span>
+            </div>
+            <div class="report-footer">
+              <span>Evidence linked to source</span>
+              <span>JSON · HTML · SARIF</span>
+            </div>
+          </div>
+          <div class="visual-note note-top">Code in. Evidence out.</div>
+          <div class="visual-note note-bottom">Made for code review</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="Supported technologies">
+      <div class="container proof-inner">
+        <span>Works across your stack</span>
+        <ul>
+          <li>Go</li>
+          <li>Python</li>
+          <li>Java</li>
+          <li>JavaScript</li>
+          <li>AWS</li>
+          <li>Azure</li>
+          <li>Google Cloud</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="why">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Useful on the first run</p>
+          <h2>From “what does this service use?” to evidence you can share.</h2>
+          <p>Cloud usage is often spread across code, tickets, and IAM policies. CCE gives developers and reviewers a common starting point.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-number">01</span>
+            <h3>Build an API inventory</h3>
+            <p>Find provider, resource, operation, and source-location evidence across supported languages. Export a machine-readable report for your own tools.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">02</span>
+            <h3>Review what changed</h3>
+            <p>See added and removed Cloud API calls in one pull-request comment. Keep the JSON, Markdown, and SARIF evidence for later.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">03</span>
+            <h3>Start an access conversation</h3>
+            <p>Give IAM reviewers a concise list of operations found in code. They decide the final policy and resource boundaries.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tinted" id="quickstart">
+      <div class="container split-layout">
+        <div class="section-heading align-start">
+          <p class="eyebrow">Quick start</p>
+          <h2>One small workflow.<br>A useful first report.</h2>
+          <p>Create <code>.github/workflows/cce.yml</code> in your repository. The workflow checks out your code, runs CCE, and uploads the results.</p>
+          <ol class="steps">
+            <li><span>1</span>Add the workflow and commit it.</li>
+            <li><span>2</span>Open the CCE run in GitHub Actions.</li>
+            <li><span>3</span>Download the <code>cce-results</code> artifact.</li>
+          </ol>
+          <a class="text-link" href="https://github.com/stackgenhq/cce-action/blob/main/examples/scan.yml">Open the complete example <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="code-window">
+          <div class="code-heading"><span>.github/workflows/cce.yml</span><span>YAML</span></div>
+          <pre><code><span class="code-muted">name:</span> CCE
+<span class="code-muted">on:</span> [push, pull_request]
+
+<span class="code-muted">permissions:</span>
+  <span class="code-muted">contents:</span> read
+  <span class="code-muted">packages:</span> read
+
+<span class="code-muted">jobs:</span>
+  <span class="code-muted">scan:</span>
+    <span class="code-muted">uses:</span> stackgenhq/cce-action/.github/workflows/scan.yml@v1
+    <span class="code-muted">with:</span>
+      <span class="code-muted">language:</span> AUTO
+      <span class="code-muted">filter:</span> cloud</code></pre>
+        </div>
+      </div>
+      <div class="container callout">
+        <strong>Prefer a fixed version?</strong>
+        <span>Use <code>@v0.3.0</code> instead of <code>@v1</code>. The major tag receives compatible updates; an exact release stays fixed.</span>
+      </div>
+    </section>
+
+    <section class="section" id="workflows">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Choose your starting point</p>
+          <h2>Focused workflows for everyday engineering.</h2>
+          <p>Start with a scan, then add only the capabilities your team needs.</p>
+        </div>
+        <div class="workflow-list">
+          <article class="workflow-item">
+            <div class="workflow-icon" aria-hidden="true">S</div>
+            <div><h3>Scan</h3><p>Create a Cloud API report, IAM-related exports, and a cloud-neutral E-SBOM.</p></div>
+            <a href="https://github.com/stackgenhq/cce-action/blob/main/examples/scan.yml" aria-label="View scan example">View example <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="workflow-item">
+            <div class="workflow-icon" aria-hidden="true">PR</div>
+            <div><h3>Pull-request review</h3><p>Post a sticky Cloud API diff, publish SARIF, and optionally fail when new operations appear.</p></div>
+            <a href="https://github.com/stackgenhq/cce-action/blob/main/examples/pr-review.yml" aria-label="View pull-request review example">View example <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="workflow-item">
+            <div class="workflow-icon" aria-hidden="true">IAM</div>
+            <div><h3>Access request</h3><p>Package code-evidenced operations as versioned JSON for review in your IAM process.</p></div>
+            <a href="https://github.com/stackgenhq/cce-action/blob/main/examples/access-request.yml" aria-label="View access request example">View example <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="workflow-item">
+            <div class="workflow-icon" aria-hidden="true">Q</div>
+            <div><h3>Quickstart bundle</h3><p>Share an HTML report, API inventory, SARIF, lens lockfile, and suggested CI workflow.</p></div>
+            <a href="https://github.com/stackgenhq/cce-action/blob/main/examples/quickstart.yml" aria-label="View quickstart example">View example <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="workflow-item">
+            <div class="workflow-icon" aria-hidden="true">L</div>
+            <div><h3>Lens verification</h3><p>Test a proposed lens against committed fixtures and catch regressions before merging.</p></div>
+            <a href="https://github.com/stackgenhq/cce-action/blob/main/examples/lens-verify.yml" aria-label="View lens verification example">View example <span aria-hidden="true">↗</span></a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="lenses">
+      <div class="container split-layout split-reverse">
+        <div>
+          <div class="code-window code-window-dark">
+            <div class="code-heading"><span>Typical lens inputs</span><span>YAML</span></div>
+            <pre><code><span class="code-muted">- uses:</span> stackgenhq/cce-action@v1
+  <span class="code-muted">with:</span>
+    <span class="code-muted">language:</span> AUTO
+    <span class="code-muted">lens:</span> .cce/internal-sdk.yaml
+    <span class="code-muted">filter:</span> all</code></pre>
+          </div>
+          <div class="lens-points">
+            <div><strong>Local lenses</strong><span>Content hashes are calculated automatically.</span></div>
+            <div><strong>Remote lenses</strong><span>HTTPS and an expected SHA-256 are required.</span></div>
+          </div>
+        </div>
+        <div class="section-heading align-start">
+          <p class="eyebrow eyebrow-light">Make CCE speak your language</p>
+          <h2>Your code has its own vocabulary. A lens teaches CCE to recognize it.</h2>
+          <p>A lens is a small YAML file that describes the libraries or patterns you want to find. Use one to inventory internal SDKs, legacy clients, or technology-debt patterns alongside built-in cloud mappings.</p>
+          <ul class="check-list">
+            <li>Keep lens definitions with your code.</li>
+            <li>Pin remote content so changes are visible.</li>
+            <li>Test changes against fixtures before rollout.</li>
+          </ul>
+          <a class="text-link text-link-light" href="https://appcd-dev.github.io/cce/guides/lenses/">Read the plain-language lens guide <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="trust">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Designed for responsible review</p>
+          <h2>Useful evidence. Clear boundaries.</h2>
+          <p>CCE supports engineering decisions; it does not replace testing, provider documentation, or an IAM reviewer.</p>
+        </div>
+        <div class="trust-grid">
+          <article><h3>Private by default</h3><p>No CCE account is needed. Field diagnostics are off unless you explicitly enable them. Basic scans use read-only repository permissions.</p></article>
+          <article><h3>Traceable results</h3><p>Reports connect operations to source locations. Lens hashes and versioned artifacts help reviewers understand what produced a result.</p></article>
+          <article><h3>No guessed permissions</h3><p>Strict GCP and Azure exports do not publish unverified permission mappings. A missing role export is not silently replaced with a guess.</p></article>
+          <article><h3>Static-analysis limits</h3><p>Dynamic, reflected, or unrecognized wrapped calls may be missed. An empty result does not prove that a service needs no permissions.</p></article>
+        </div>
+        <div class="note-box">
+          <strong>IAM requests are review input, not ready-to-deploy policy.</strong>
+          <p>CCE identifies operations in source code. Your reviewers remain responsible for resource scope, runtime behavior, organizational policy, and final approval.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-tinted" id="details">
+      <div class="container details-grid">
+        <div>
+          <p class="eyebrow">Good to know</p>
+          <h2>Practical details</h2>
+          <dl class="details-list">
+            <div><dt>Runner</dt><dd>Linux with Docker; <code>ubuntu-latest</code> is the simplest choice.</dd></div>
+            <div><dt>Languages</dt><dd>Go, Python, Java, and JavaScript. Use <code>AUTO</code> for detection.</dd></div>
+            <div><dt>Results</dt><dd>JSON reports, workflow artifacts, optional HTML and SARIF, and selected IAM exports.</dd></div>
+            <div><dt>Custom providers</dt><dd>Use <code>filter: all</code> when a lens reports categories outside the cloud filter.</dd></div>
+            <div><dt>Large repositories</dt><dd>Scan a subdirectory or set <code>scan-timeout</code> to keep CI bounded.</dd></div>
+            <div><dt>Fork pull requests</dt><dd>Review artifacts remain available; comments and SARIF publication are skipped when the token cannot write safely.</dd></div>
+          </dl>
+        </div>
+        <div class="faq">
+          <h2>Common questions</h2>
+          <details>
+            <summary>Do I need to install CCE separately?</summary>
+            <p>No. The reusable workflows and composite actions provide a tested CCE version for the run.</p>
+          </details>
+          <details>
+            <summary>Can I use CCE inside an existing job?</summary>
+            <p>Yes. Check out your repository, then use <code>stackgenhq/cce-action@v1</code> or a focused subaction such as <code>access-request@v1</code>.</p>
+          </details>
+          <details>
+            <summary>Where do my reports go?</summary>
+            <p>They are written to the configured output directory and, in the reusable workflows, uploaded as GitHub Actions artifacts.</p>
+          </details>
+          <details>
+            <summary>Is this a compliance or least-privilege verdict?</summary>
+            <p>No. It is source-code evidence for review. Validate policies against runtime needs and your organization’s requirements.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section final-cta">
+      <div class="container final-cta-inner">
+        <div>
+          <p class="eyebrow">Start with one repository</p>
+          <h2>Make cloud usage easier to see, share, and review.</h2>
+        </div>
+        <div class="hero-actions">
+          <a class="button" href="https://github.com/stackgenhq/cce-action">Get CCE Action <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://appcd-dev.github.io/cce/">Explore CCE documentation <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div><strong>CCE Action</strong><span>Open-source Cloud API evidence for GitHub Actions.</span></div>
+      <div class="footer-links">
+        <a href="https://github.com/stackgenhq/cce-action">Repository</a>
+        <a href="https://github.com/stackgenhq/cce-action#inputs">Inputs &amp; outputs</a>
+        <a href="https://github.com/stackgenhq/cce-action/issues">Issues</a>
+        <a href="https://github.com/stackgenhq/cce-action/blob/main/LICENSE">License</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
