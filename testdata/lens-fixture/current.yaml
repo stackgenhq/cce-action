@@ -1,0 +1,10 @@
+definition:
+  language:
+    python:
+      - name: "Modern httpx client"
+        prefix: "httpx."
+        rule: "httpx\\.(?<operation>[a-zA-Z0-9_]+)"
+        provider: TARGET
+  providers:
+    TARGET:
+      servicenameMapping: {}

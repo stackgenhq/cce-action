@@ -1,0 +1,16 @@
+definition:
+  language:
+    python:
+      - name: "Modern httpx client"
+        prefix: "httpx."
+        rule: "httpx\\.(?<operation>[a-zA-Z0-9_]+)"
+        provider: TARGET
+      - name: "Legacy requests library"
+        prefix: "requests."
+        rule: "requests\\.(?<operation>[a-zA-Z0-9_]+)"
+        provider: TECH_DEBT
+  providers:
+    TARGET:
+      servicenameMapping: {}
+    TECH_DEBT:
+      servicenameMapping: {}

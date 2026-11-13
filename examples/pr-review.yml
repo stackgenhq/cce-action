@@ -1,0 +1,19 @@
+# .github/workflows/cce-pr-review.yml
+name: CCE Cloud API review
+on: [pull_request]
+
+permissions:
+  contents: read
+  packages: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  review:
+    uses: stackgenhq/cce-action/.github/workflows/pr-review.yml@v1
+    with:
+      language: AUTO
+      # Optional lens. Use filter=all for custom providers such as TECH_DEBT.
+      # lens: .cce/cloud.yaml
+      filter: cloud
+      fail-new: false

@@ -1,0 +1,94 @@
+name: CCE access request (reusable)
+
+# Artifact-first integration: the calling repository can review or forward the
+# access request without granting this workflow cross-repository credentials.
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Directory to scan inside the checked-out repo.
+        type: string
+        default: "."
+      lens:
+        description: Local custom lens YAML or HTTPS URL.
+        type: string
+        default: ""
+      lens-sha256:
+        description: Expected lens file SHA-256 (required for HTTPS lenses).
+        type: string
+        default: ""
+      service:
+        description: Service name (defaults to the scanned folder name).
+        type: string
+        default: ""
+      commit:
+        description: Source commit (defaults to git HEAD when available).
+        type: string
+        default: ""
+      output-dir:
+        description: Directory for the access-request artifact.
+        type: string
+        default: cce-results/access-request
+      upload-artifact:
+        description: Upload the access-request artifact.
+        type: boolean
+        default: true
+      artifact-name:
+        description: Name of the uploaded artifact.
+        type: string
+        default: cce-access-request
+      image:
+        description: CCE container image used to install the CLI.
+        type: string
+        default: ghcr.io/stackgenhq/cce:0.0.38
+    outputs:
+      version:
+        description: Installed cce version.
+        value: ${{ jobs.access-request.outputs.version }}
+      image:
+        description: Container image used for install, or preinstalled.
+        value: ${{ jobs.access-request.outputs.image }}
+      access-request-path:
+        description: Path to cce-access-request.json.
+        value: ${{ jobs.access-request.outputs.access-request-path }}
+      operation-count:
+        description: Number of unique code-evidenced operations.
+        value: ${{ jobs.access-request.outputs.operation-count }}
+      commit:
+        description: Source commit recorded in the access request.
+        value: ${{ jobs.access-request.outputs.commit }}
+      lens-file-sha256:
+        description: SHA-256 of the custom lens file bytes.
+        value: ${{ jobs.access-request.outputs.lens-file-sha256 }}
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  access-request:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.cce.outputs.version }}
+      image: ${{ steps.cce.outputs.image }}
+      access-request-path: ${{ steps.cce.outputs.access-request-path }}
+      operation-count: ${{ steps.cce.outputs.operation-count }}
+      commit: ${{ steps.cce.outputs.commit }}
+      lens-file-sha256: ${{ steps.cce.outputs.lens-file-sha256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate CCE access request
+        id: cce
+        uses: stackgenhq/cce-action/access-request@v1
+        with:
+          path: ${{ inputs.path }}
+          lens: ${{ inputs.lens }}
+          lens-sha256: ${{ inputs.lens-sha256 }}
+          service: ${{ inputs.service }}
+          commit: ${{ inputs.commit }}
+          output-dir: ${{ inputs.output-dir }}
+          upload-artifact: ${{ inputs.upload-artifact }}
+          artifact-name: ${{ inputs.artifact-name }}
+          image: ${{ inputs.image }}

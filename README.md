@@ -5,7 +5,10 @@ GitHub Action and reusable workflow that runs [StackGen CCE](https://appcd-dev.g
 Both the composite action and the reusable workflow install `cce` by pulling
 [`ghcr.io/stackgenhq/cce`](https://github.com/stackgenhq/homebrew-stackgen/pkgs/container/cce)
 and copying `/usr/local/bin/cce` onto `PATH`. That replaces the previous
-Homebrew formula download and works on linux amd64 and arm64 runners.
+Homebrew formula download and works on linux amd64 and arm64 runners. Each
+action release defaults to the CCE image version its self-tests exercised
+(currently `0.0.38`), rather than the moving `latest` tag; `image` remains an
+explicit override.
 
 By default it attempts to export AWS IAM, GCP IAM, Azure RBAC, and
 cloud-neutral E-SBOM artifacts. GCP IAM and Azure RBAC exports use the CLI's
@@ -50,6 +53,105 @@ onto `PATH`:
 
 See [`examples/scan.yml`](examples/scan.yml).
 
+## Use a custom lens
+
+A lens teaches CCE your organization's SDK wrappers or inventory categories.
+Use a workspace-relative path; the action hashes the local file and passes the
+pin to CCE automatically. Custom providers such as `TECH_DEBT` need
+`filter: all`.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: stackgenhq/cce-action@v1
+  id: cce
+  with:
+    language: AUTO
+    lens: .cce/tech-debt.yaml
+    filter: all
+    # Optional: scan a built-in baseline and fail unless this lens adds a
+    # unique provider/resource/operation mapping.
+    lens-required: true
+```
+
+The step outputs `lens-file-sha256` and, when requested,
+`lens-new-operation-count`. For a mutable HTTPS lens, supply the expected hash
+so changed content fails before any rules load:
+
+```yaml
+- uses: stackgenhq/cce-action@v1
+  with:
+    lens: https://example.com/approved-lens.yaml
+    lens-sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    filter: all
+```
+
+## Cloud API review on every PR
+
+The reusable PR workflow handles base/head worktrees, Markdown and JSON diffs,
+a paginated sticky comment, SARIF, artifacts, and optional policy gates:
+
+```yaml
+jobs:
+  cloud-api-review:
+    uses: stackgenhq/cce-action/.github/workflows/pr-review.yml@v1
+    with:
+      language: AUTO
+      lens: .cce/cloud.yaml # optional
+      filter: all          # use all for custom lens providers
+      fail-new: false
+```
+
+Set `comment: false` for a read-only workflow. Comment and SARIF publication
+are skipped for fork PRs, where the token normally cannot write. The workflow
+outputs added/removed counts and report paths.
+
+## Access requests, quickstart, and lens Gate 0
+
+Generate a versioned IAM-review artifact without hand-writing CLI or upload
+steps:
+
+```yaml
+- uses: stackgenhq/cce-action/access-request@v1
+  with:
+    service: payments-api
+    lens: .cce/cloud.yaml
+```
+
+Outputs include `access-request-path`, `operation-count`, `commit`, and
+`lens-file-sha256`. The reusable `access-request.yml` wraps checkout and upload.
+Cross-repository notification remains a separate, explicit IAM-repository
+integration; this action does not require a cross-repo token.
+
+For a shareable first-run bundle (Cloud API BOM, HTML, SARIF, lens lockfile,
+and a suggested CI workflow):
+
+```yaml
+- uses: stackgenhq/cce-action/quickstart@v1
+  with:
+    path: .
+```
+
+Lens repositories can run deterministic Gate 0 on every lens PR:
+
+```yaml
+jobs:
+  lens-gate:
+    uses: stackgenhq/cce-action/.github/workflows/lens-verify.yml@v1
+    with:
+      fixture: testdata/lens-fixture
+      current: current.yaml
+      candidate: candidate.yaml
+```
+
+The gate uploads verdict evidence even on failure and reports newly mapped and
+regressed rows in the job summary. Regressions fail by default. Local current
+and candidate lenses are hashed automatically; HTTPS lenses require their
+respective SHA-256 inputs. These workflows and subactions require CCE `0.0.38`
+or newer and fail with an upgrade message when an older preinstalled binary
+lacks the command.
+
+See [`examples/`](examples/) for complete workflow snippets.
+
 ## Diagnostics (off by default)
 
 CCE field diagnostics are **disabled** unless you set `diagnostics: true`.
@@ -72,11 +174,14 @@ can slow CI log ingestion.
 | `format` | `json` | Primary report format |
 | `output-dir` | `cce-results` | Where reports are written |
 | `diagnostics` | `false` | Opt in to StackGen field diagnostics |
+| `lens` | empty | Workspace-relative lens YAML or HTTPS URL |
+| `lens-sha256` | empty | Expected lens bytes hash; required for HTTPS, automatic for local files |
+| `lens-required` | `false` | Fail if the lens adds no unique operations (JSON; scans a baseline) |
 | `export-policies` | `true` | Export aws-iam / gcp-iam / azure-rbac / esbom |
 | `fail-on-empty` | `false` | Fail when entitlements == 0 |
 | `log-level` | `info` | `debug`, `info`, `warn`, `error` |
 | `scan-timeout` | `0` | Wall-clock seconds allowed for the cce scan itself (0 = no limit) |
-| `image` | `ghcr.io/stackgenhq/cce:latest` | Container image used to provide `cce` |
+| `image` | `ghcr.io/stackgenhq/cce:0.0.38` | Action-tested CCE image; override to select another CLI |
 
 ## Outputs
 
@@ -90,6 +195,8 @@ can slow CI log ingestion.
 | `azure-rbac-path` | Azure role JSON only if all relevant actions are catalog-mapped; otherwise empty |
 | `esbom-path` | Cloud-neutral E-SBOM JSON, or empty |
 | `entitlement-count` | Total entitlements in the report |
+| `lens-file-sha256` | Verified local digest or configured remote lens pin |
+| `lens-new-operation-count` | Unique operations added by the lens when `lens-required` is true |
 
 ## Large repositories
 
@@ -108,7 +215,7 @@ or checking the repo size in a prior step.
 
 ## Versioning
 
-Use a major tag (`@v1`) or a pinned release (`@v0.2.0`). Pin `image` to a version tag (for example `ghcr.io/stackgenhq/cce:0.0.12`) when you need a fixed CLI.
+Use a major tag (`@v1`) or a pinned release (`@v0.2.0`). The action's default image is fixed to its tested CLI release; override `image` (for example `ghcr.io/stackgenhq/cce:0.0.38`) when you deliberately need another CLI.
 
 Releases are cut from the **Release** workflow (Actions tab -> Run workflow on
 `main`). The workflow refuses to release unless Self-test is green for the

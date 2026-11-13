@@ -1,0 +1,18 @@
+# .github/workflows/cce-access-request.yml
+name: CCE access request
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  request:
+    uses: stackgenhq/cce-action/.github/workflows/access-request.yml@v1
+    with:
+      path: .
+      service: my-service
+      # lens: .cce/cloud.yaml
+      # lens-sha256: only needed for an HTTPS lens; local files are auto-hashed

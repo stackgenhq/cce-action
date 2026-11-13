@@ -4,7 +4,7 @@
 # job itself runs inside the CCE container.
 set -euo pipefail
 
-image="${INPUT_IMAGE:-ghcr.io/stackgenhq/cce:latest}"
+image="${INPUT_IMAGE:-ghcr.io/stackgenhq/cce:0.0.38}"
 
 if command -v cce >/dev/null 2>&1; then
   version="$(cce --version 2>/dev/null | head -1 || true)"

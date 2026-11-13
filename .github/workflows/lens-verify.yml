@@ -1,0 +1,98 @@
+name: CCE lens verify (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      fixture:
+        description: Fixture corpus directory inside the checked-out repository
+        type: string
+        required: true
+      candidate:
+        description: Candidate lens YAML (local path or pinned HTTPS URL)
+        type: string
+        required: true
+      current:
+        description: Baseline lens YAML; empty uses the built-in catalog
+        type: string
+        default: ""
+      candidate-sha256:
+        description: Candidate lens SHA-256 pin
+        type: string
+        default: ""
+      current-sha256:
+        description: Current lens SHA-256 pin
+        type: string
+        default: ""
+      language:
+        description: Language scope for fixture verification
+        type: string
+        default: AUTO
+      fail-regression:
+        description: Fail when verification finds regressed rows
+        type: boolean
+        default: true
+      output-dir:
+        description: Directory for the lens verdict JSON
+        type: string
+        default: cce-results/lens-verify
+      image:
+        description: CCE container image (Gate 0 requires 0.0.38 or newer)
+        type: string
+        default: ghcr.io/stackgenhq/cce:0.0.38
+      upload-artifact:
+        description: Upload verdict JSON even when verification fails
+        type: boolean
+        default: true
+      artifact-name:
+        description: Name of the uploaded verdict artifact
+        type: string
+        default: cce-lens-verify
+    outputs:
+      verdict-path:
+        description: Path to the verdict JSON evidence
+        value: ${{ jobs.verify.outputs.verdict-path }}
+      verdict:
+        description: Lens verification verdict
+        value: ${{ jobs.verify.outputs.verdict }}
+      newly-mapped-count:
+        description: Number of newly mapped fixture rows
+        value: ${{ jobs.verify.outputs.newly-mapped-count }}
+      regressed-count:
+        description: Number of regressed fixture rows
+        value: ${{ jobs.verify.outputs.regressed-count }}
+      candidate-sha256:
+        description: SHA-256 pin used for the candidate lens
+        value: ${{ jobs.verify.outputs.candidate-sha256 }}
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      verdict-path: ${{ steps.lens.outputs.verdict-path }}
+      verdict: ${{ steps.lens.outputs.verdict }}
+      newly-mapped-count: ${{ steps.lens.outputs.newly-mapped-count }}
+      regressed-count: ${{ steps.lens.outputs.regressed-count }}
+      candidate-sha256: ${{ steps.lens.outputs.candidate-sha256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify lens Gate 0
+        id: lens
+        uses: stackgenhq/cce-action/lens-verify@v1
+        with:
+          fixture: ${{ inputs.fixture }}
+          candidate: ${{ inputs.candidate }}
+          current: ${{ inputs.current }}
+          candidate-sha256: ${{ inputs.candidate-sha256 }}
+          current-sha256: ${{ inputs.current-sha256 }}
+          language: ${{ inputs.language }}
+          fail-regression: ${{ inputs.fail-regression }}
+          output-dir: ${{ inputs.output-dir }}
+          image: ${{ inputs.image }}
+          upload-artifact: ${{ inputs.upload-artifact }}
+          artifact-name: ${{ inputs.artifact-name }}

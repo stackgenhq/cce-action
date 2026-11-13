@@ -1,0 +1,17 @@
+# .github/workflows/cce-lens-gate.yml in a lens repository
+name: CCE lens Gate 0
+on: [pull_request]
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    uses: stackgenhq/cce-action/.github/workflows/lens-verify.yml@v1
+    with:
+      fixture: testdata/lens-fixture
+      current: current.yaml
+      candidate: candidate.yaml
+      language: AUTO
+      fail-regression: true

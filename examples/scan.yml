@@ -17,6 +17,9 @@ jobs:
     with:
       language: AUTO
       filter: cloud
+      # Optional: lens: .cce/cloud.yaml
+      # Use filter: all for custom providers such as TECH_DEBT.
+      # Local lens hashes are automatic; HTTPS lenses require lens-sha256.
       # Leave diagnostics false unless you intentionally opt in to sending
       # unmapped method signatures to StackGen field ingest.
       diagnostics: false

@@ -108,3 +108,158 @@ jobs:
       export-policies: true
       fail-on-empty: true
       artifact-name: reusable-self-test-cce-results
+
+  plg-adoption:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan with a pinned local lens and measure its value
+        id: lens-scan
+        uses: ./
+        with:
+          path: testdata/fixture
+          language: PYTHON
+          filter: all
+          lens: testdata/fixture/lens.yaml
+          lens-required: true
+          export-policies: false
+          fail-on-empty: true
+          log-level: error
+
+      - name: Assert lens adoption outputs
+        env:
+          REPORT: ${{ steps.lens-scan.outputs.report-path }}
+          LENS_SHA256: ${{ steps.lens-scan.outputs.lens-file-sha256 }}
+          NEW_OPERATIONS: ${{ steps.lens-scan.outputs.lens-new-operation-count }}
+        run: |
+          set -euo pipefail
+          test -f "$REPORT"
+          test "$NEW_OPERATIONS" = "1"
+          test "${#LENS_SHA256}" = "64"
+          test "$(sha256sum testdata/fixture/lens.yaml | awk '{print $1}')" = "$LENS_SHA256"
+          jq -e '.entitlements[] | select(.provider == "TECH_DEBT" and .resource == "requests" and .operation == "get")' "$REPORT"
+
+      - name: Reject a tampered local lens
+        id: bad-pin
+        uses: ./
+        continue-on-error: true
+        with:
+          path: testdata/fixture
+          language: PYTHON
+          filter: all
+          lens: testdata/fixture/lens.yaml
+          lens-sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+          export-policies: false
+
+      - name: Assert bad lens pin failed closed
+        run: test "${{ steps.bad-pin.outcome }}" = "failure"
+
+      - name: Reject an unpinned remote lens
+        id: remote-pin
+        uses: ./
+        continue-on-error: true
+        with:
+          path: testdata/fixture
+          language: PYTHON
+          lens: https://example.com/never-fetch-without-a-pin.yaml
+          export-policies: false
+
+      - name: Assert remote lens requires a pin
+        run: test "${{ steps.remote-pin.outcome }}" = "failure"
+
+      - name: Generate access request
+        id: access
+        uses: ./access-request
+        with:
+          path: testdata/fixture
+          service: action-fixture
+          lens: testdata/fixture/lens.yaml
+          artifact-name: self-test-access-request
+
+      - name: Assert access request contract
+        env:
+          REPORT: ${{ steps.access.outputs.access-request-path }}
+          COMMIT: ${{ steps.access.outputs.commit }}
+        run: |
+          set -euo pipefail
+          test "${{ steps.access.outputs.operation-count }}" = "3"
+          test "$COMMIT" = "${{ github.sha }}"
+          jq -e '.schema == "cce-access-request/v1" and .service == "action-fixture"' "$REPORT"
+          jq -e '.operations[] | select(.provider == "TECH_DEBT" and .operation == "get")' "$REPORT"
+          jq -e '[.operations[] | select((.operation // "") == "")] | length == 0' "$REPORT"
+
+      - name: Generate quickstart artifacts
+        id: quickstart
+        uses: ./quickstart
+        with:
+          path: testdata/fixture
+          lens: testdata/fixture/lens.yaml
+          artifact-name: self-test-quickstart
+
+      - name: Assert quickstart artifact set
+        env:
+          BOM: ${{ steps.quickstart.outputs.bom-path }}
+          HTML: ${{ steps.quickstart.outputs.html-path }}
+          SARIF: ${{ steps.quickstart.outputs.sarif-path }}
+          LENS_LOCK: ${{ steps.quickstart.outputs.lens-lock-path }}
+          WORKFLOW: ${{ steps.quickstart.outputs.workflow-path }}
+        run: |
+          set -euo pipefail
+          for artifact in "$BOM" "$HTML" "$SARIF" "$LENS_LOCK" "$WORKFLOW"; do
+            test -s "$artifact"
+          done
+          test "${{ steps.quickstart.outputs.entitlement-count }}" = "6"
+
+      - name: Verify a good lens candidate
+        id: verify
+        uses: ./lens-verify
+        with:
+          fixture: testdata/lens-fixture
+          current: testdata/lens-fixture/current.yaml
+          candidate: testdata/lens-fixture/candidate.yaml
+          language: PYTHON
+          artifact-name: self-test-lens-ok
+
+      - name: Assert good candidate outputs
+        run: |
+          set -euo pipefail
+          test "${{ steps.verify.outputs.verdict }}" = "ok"
+          test "${{ steps.verify.outputs.newly-mapped-count }}" = "2"
+          test "${{ steps.verify.outputs.regressed-count }}" = "0"
+          test -s "${{ steps.verify.outputs.verdict-path }}"
+
+      - name: Detect an intentional lens regression
+        id: regression
+        uses: ./lens-verify
+        continue-on-error: true
+        with:
+          fixture: testdata/lens-fixture
+          current: testdata/lens-fixture/current.yaml
+          candidate: testdata/lens-fixture/regression.yaml
+          language: PYTHON
+          artifact-name: self-test-lens-regression
+
+      - name: Assert regression evidence survives the failed gate
+        run: |
+          set -euo pipefail
+          test "${{ steps.regression.outcome }}" = "failure"
+          test "${{ steps.regression.outputs.verdict }}" = "regression"
+          test "${{ steps.regression.outputs.regressed-count }}" = "1"
+          test -s "${{ steps.regression.outputs.verdict-path }}"
+
+  pr-review:
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: write
+      security-events: write
+    uses: ./.github/workflows/pr-review.yml
+    with:
+      path: testdata/fixture
+      language: PYTHON
+      filter: cloud
+      base-ref: main
+      comment: false
+      upload-sarif: false

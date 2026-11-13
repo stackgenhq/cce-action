@@ -1,0 +1,100 @@
+name: CCE quickstart (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: Directory to scan inside the checked-out repo.
+        type: string
+        default: "."
+      lens:
+        description: Local custom lens YAML or HTTPS URL.
+        type: string
+        default: ""
+      lens-sha256:
+        description: Expected lens file SHA-256 (required for HTTPS lenses).
+        type: string
+        default: ""
+      policy:
+        description: Optional local IAM policy JSON for potential-drift review.
+        type: string
+        default: ""
+      write-workflow:
+        description: Generate .github/workflows/cce.yml if absent.
+        type: boolean
+        default: true
+      output-dir:
+        description: Directory for the complete quickstart artifact set.
+        type: string
+        default: cce-results/quickstart
+      upload-artifact:
+        description: Upload the complete quickstart artifact set.
+        type: boolean
+        default: true
+      artifact-name:
+        description: Name of the uploaded artifact.
+        type: string
+        default: cce-quickstart
+      image:
+        description: CCE container image used to install the CLI.
+        type: string
+        default: ghcr.io/stackgenhq/cce:0.0.38
+    outputs:
+      version:
+        description: Installed cce version.
+        value: ${{ jobs.quickstart.outputs.version }}
+      image:
+        description: Container image used for install, or preinstalled.
+        value: ${{ jobs.quickstart.outputs.image }}
+      bom-path:
+        description: Path to the Cloud API BOM JSON.
+        value: ${{ jobs.quickstart.outputs.bom-path }}
+      html-path:
+        description: Path to the self-contained HTML report.
+        value: ${{ jobs.quickstart.outputs.html-path }}
+      sarif-path:
+        description: Path to the SARIF report.
+        value: ${{ jobs.quickstart.outputs.sarif-path }}
+      lens-lock-path:
+        description: Path to the lens provenance lockfile.
+        value: ${{ jobs.quickstart.outputs.lens-lock-path }}
+      workflow-path:
+        description: Path to the workflow copy in the artifact set.
+        value: ${{ jobs.quickstart.outputs.workflow-path }}
+      entitlement-count:
+        description: Total entitlements found in the Cloud API BOM.
+        value: ${{ jobs.quickstart.outputs.entitlement-count }}
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  quickstart:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.cce.outputs.version }}
+      image: ${{ steps.cce.outputs.image }}
+      bom-path: ${{ steps.cce.outputs.bom-path }}
+      html-path: ${{ steps.cce.outputs.html-path }}
+      sarif-path: ${{ steps.cce.outputs.sarif-path }}
+      lens-lock-path: ${{ steps.cce.outputs.lens-lock-path }}
+      workflow-path: ${{ steps.cce.outputs.workflow-path }}
+      entitlement-count: ${{ steps.cce.outputs.entitlement-count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run CCE quickstart
+        id: cce
+        uses: stackgenhq/cce-action/quickstart@v1
+        with:
+          path: ${{ inputs.path }}
+          lens: ${{ inputs.lens }}
+          lens-sha256: ${{ inputs.lens-sha256 }}
+          policy: ${{ inputs.policy }}
+          write-workflow: ${{ inputs.write-workflow }}
+          output-dir: ${{ inputs.output-dir }}
+          upload-artifact: ${{ inputs.upload-artifact }}
+          artifact-name: ${{ inputs.artifact-name }}
+          image: ${{ inputs.image }}
