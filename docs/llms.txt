@@ -13,6 +13,7 @@ CCE Action requires no CCE account. Diagnostics are off by default. Static resul
 
 ## Workflow examples
 
+- [Public repository scan with real output](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/public-repo.yml): Pinned AWS Samples checkout, Python scan, and artifact upload; the developer guide explains the resulting JSON.
 - [Repository scan](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/scan.yml): Reusable scan workflow and composite action alternatives.
 - [Cloud API pull-request review](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/pr-review.yml): Sticky Markdown diff, SARIF, artifacts, and optional gates.
 - [IAM access request](https://raw.githubusercontent.com/stackgenhq/cce-action/main/examples/access-request.yml): Artifact-first `cce-access-request/v1` generation without a cross-repository token.
@@ -31,6 +32,7 @@ CCE Action requires no CCE account. Diagnostics are off by default. Static resul
 
 - [CCE llms.txt](https://appcd-dev.github.io/cce/llms.txt): Curated index for the CCE CLI, lenses, recipes, diffs, exports, and limitations.
 - [CCE capabilities and examples](https://appcd-dev.github.io/cce/capabilities/index.md): Clean Markdown examples for the underlying CLI.
+- [Worked Cloud API inventory](https://appcd-dev.github.io/cce/examples/cloud-api-inventory/index.md): Verified public-repository output, field explanations, IAM interpretation, and boundaries.
 
 ## Optional
 

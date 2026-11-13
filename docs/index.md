@@ -41,6 +41,72 @@ Open the workflow run and download the `cce-results` artifact. Use `@v0.3.0` ins
 
 The reusable workflows perform checkout and artifact upload themselves. Composite actions require `actions/checkout` first.
 
+## Worked example: scan a public repository
+
+This workflow checks out [AWS Samples' Lambda Extensions repository](https://github.com/aws-samples/aws-lambda-extensions) at a fixed commit, scans its Python source, and uploads the JSON result. Add it to any repository and run it manually; no AWS credentials or CCE account are needed.
+
+```yaml
+name: CCE public repository example
+on: workflow_dispatch
+permissions:
+  contents: read
+  packages: read
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aws-samples/aws-lambda-extensions
+          ref: cfed93e212d6415115d6a0a8a10885cded5a2b3b
+      - uses: stackgenhq/cce-action@v1
+        with:
+          language: PYTHON
+          filter: cloud
+          output-dir: cce-results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cce-public-repo-results
+          path: cce-results/*
+```
+
+[Copy this workflow](https://github.com/stackgenhq/cce-action/blob/main/examples/public-repo.yml). The reusable scan workflow is simpler when scanning the repository that owns the workflow; explicit checkout is needed for this public-repository demonstration.
+
+### What the result looks like
+
+CCE 0.0.38 examined 313 files and emitted 10 AWS evidence rows at the pinned commit. This excerpt keeps the summary and one complete Secrets Manager call:
+
+```json
+{
+  "files_scanned": 313,
+  "summary": {
+    "total_entitlements": 10,
+    "by_provider": { "AWS": 10 }
+  },
+  "example": {
+    "provider": "AWS",
+    "resource": "secretsmanager",
+    "operation": "get_secret_value",
+    "file": "python-example-telemetry-opensearch-extension/python-example-telemetry-opensearch-extension/telemetry_dispatcher.py",
+    "line": 19,
+    "column": 19,
+    "method": "boto3.client('secretsmanager').get_secret_value",
+    "signature": "sm_client.get_secret_value(SecretId=os.getenv('AUTH_SECRET'))",
+    "import_path": "boto3.client('secretsmanager')"
+  }
+}
+```
+
+### What it means and why it matters
+
+- `files_scanned` describes analysis scope, not the number of cloud calls.
+- `total_entitlements` counts emitted evidence rows, not unique API operations or IAM permissions. Client construction can produce separate rows.
+- `provider`, `resource`, and `operation` classify the call as AWS Secrets Manager `get_secret_value`.
+- `file`, `line`, and `column` link the finding to [the exact source line](https://github.com/aws-samples/aws-lambda-extensions/blob/cfed93e212d6415115d6a0a8a10885cded5a2b3b/python-example-telemetry-opensearch-extension/python-example-telemetry-opensearch-extension/telemetry_dispatcher.py#L19). `method`, `signature`, and `import_path` explain the SDK match.
+- A reviewer can use this evidence when evaluating `secretsmanager:GetSecretValue`, then choose the secret ARN and validate the execution role. CCE does not make that grant automatically.
+
+The scan does not execute code, read secret values, prove runtime coverage, or test effective IAM. Treat it as review evidence, not a ready-to-deploy policy. See the [full CLI reproduction and field guide](https://appcd-dev.github.io/cce/examples/cloud-api-inventory/) for the local command, complete explanation, and access-request next step.
+
 ## Workflows
 
 ### Scan
